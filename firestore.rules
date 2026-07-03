@@ -1,0 +1,168 @@
+rules_version = '2';
+// Demo-friendly rules: catalogue data is read-only from clients; each user owns their profile doc.
+// Tighten before production (e.g. admin-only reads for admin collections, custom claims).
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function userDoc() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid));
+    }
+    function isSignedIn() {
+      return request.auth != null;
+    }
+    /** Admin if JWT custom claim or Firestore profile says admin (must match client merge). */
+    function isAdmin() {
+      return isSignedIn()
+        && (
+          request.auth.token.role == 'admin'
+          || request.auth.token.role == 'Admin'
+          || (
+            exists(/databases/$(database)/documents/users/$(request.auth.uid))
+            && (
+              userDoc().data.role == 'admin'
+              || userDoc().data.role == 'Admin'
+            )
+          )
+        );
+    }
+    function isTeacher() {
+      return isSignedIn()
+        && (
+          request.auth.token.role == 'teacher'
+          || request.auth.token.role == 'Teacher'
+          || (
+            exists(/databases/$(database)/documents/users/$(request.auth.uid))
+            && (
+              userDoc().data.role == 'teacher'
+              || userDoc().data.role == 'Teacher'
+            )
+          )
+        );
+    }
+    /** Matches client `isAdminApprovedAssignment` — drafts may omit the boolean `approved` field. */
+    function assignmentIsPublishedSnapshot(data) {
+      return data.approved == true
+        || data.approvalStatus == 'approved'
+        || data.approvalStatus == 'Approved';
+    }
+
+    /**
+     * Actor may submit as a student: not admin, and not teacher *unless* Firestore profile
+     * still says student (stale JWT role=teacher after role was lowered — common cause of PERM_DENIED).
+     */
+    function isStudentSubmissionActor() {
+      return isSignedIn()
+        && !isAdmin()
+        && (
+          !isTeacher()
+          || (
+            exists(/databases/$(database)/documents/users/$(request.auth.uid))
+            && userDoc().data.role == 'student'
+          )
+        );
+    }
+
+    /** Same approval metadata before/after write; uses get() so missing optional fields compare safely. */
+    function assignmentApprovalUnchanged() {
+      return request.resource.data.get('approved', null) == resource.data.get('approved', null)
+        && request.resource.data.get('approvalStatus', null)
+          == resource.data.get('approvalStatus', null);
+    }
+
+    /** Students may only change submission fields; immutable fields enforced via diff, not == on optional keys (missing vs null breaks access). */
+    function isStudentSubmissionUpdate() {
+      return isStudentSubmissionActor()
+        && assignmentIsPublishedSnapshot(resource.data)
+        && assignmentIsPublishedSnapshot(request.resource.data)
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'submissionUrl',
+          'status',
+          'studentName',
+        ])
+        && request.resource.data.status == 'Submitted'
+        && request.resource.data.submissionUrl is string
+        && request.resource.data.submissionUrl.size() > 0;
+    }
+
+    match /settings/{docId} {
+      allow read: if true;
+      allow write: if false;
+    }
+    match /courses/{docId} {
+      allow read: if true;
+      allow create, update: if isAdmin();
+      allow delete: if false;
+    }
+    match /scholarships/{docId} {
+      allow read: if true;
+      allow create, update, delete: if isAdmin();
+    }
+    match /users/{userId} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && request.auth.uid == userId;
+    }
+    match /cohorts/{docId} {
+      allow read: if request.auth != null;
+      allow create, update, delete: if isAdmin();
+    }
+    match /students/{docId} {
+      allow read: if request.auth != null;
+      allow write: if false;
+    }
+    match /teachers/{docId} {
+      allow read: if request.auth != null;
+      allow create, update, delete: if isAdmin();
+    }
+    match /courseModules/{docId} {
+      allow read: if request.auth != null;
+      allow create, update, delete: if isAdmin();
+    }
+    match /assignments/{docId} {
+      allow read: if request.auth != null;
+      allow create: if isAdmin()
+        || (
+          isTeacher()
+          && request.resource.data.approved == false
+          && request.resource.data.approvalStatus == 'pending'
+        );
+      allow update: if isAdmin()
+        || (isTeacher() && assignmentApprovalUnchanged())
+        || isStudentSubmissionUpdate();
+      allow delete: if false;
+    }
+    match /teacherAssignmentStats/{docId} {
+      allow read: if request.auth != null;
+      allow write: if false;
+    }
+    // Recruitment App Collections
+    match /jobs/{id} {
+      allow read, write: if request.auth != null;
+    }
+    match /candidates/{id} {
+      allow read, write: if request.auth != null;
+    }
+    match /notifications/{id} {
+      allow read, write: if request.auth != null;
+    }
+    match /applicantApplications/{id} {
+      allow read, write: if request.auth != null;
+    }
+    match /applicationChartData/{id} {
+      allow read, write: if request.auth != null;
+    }
+    match /recruiterHiringData/{id} {
+      allow read, write: if request.auth != null;
+    }
+    match /recruiterJobPostings/{id} {
+      allow read, write: if request.auth != null;
+    }
+    match /sourceData/{id} {
+      allow read, write: if request.auth != null;
+    }
+    match /monthlyHireData/{id} {
+      allow read, write: if request.auth != null;
+    }
+    match /companies/{id} {
+      allow read, write: if request.auth != null;
+    }
+  }
+}

@@ -1,0 +1,13 @@
+fastapi
+uvicorn
+pydantic
+pandas
+numpy
+scikit-learn
+fairlearn
+nltk
+cloudinary
+python-multipart
+python-dotenv
+pypdf
+
