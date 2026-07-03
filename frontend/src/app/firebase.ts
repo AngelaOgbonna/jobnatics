@@ -32,8 +32,6 @@ if (useEmulator) {
   console.log('Firebase Firestore connected to local emulator at http://127.0.0.1:8080')
 }
 
-export const BACKEND_URL = import.meta.env.PROD
-  ? 'https://fairness-recruitment.onrender.com'
-  : 'http://127.0.0.1:8000'
+export const BACKEND_URL = ''
 
 export { app, auth, db }
