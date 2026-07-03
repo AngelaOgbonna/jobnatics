@@ -20,6 +20,8 @@ interface ChatMessage {
   timestamp: Date
 }
 
+
+
 // Build AI responses using actual user profile data
 function buildAIResponses(user: any): Record<string, string> {
   const firstName = user?.name?.split(' ')[0] || 'there'
