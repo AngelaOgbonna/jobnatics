@@ -13,7 +13,7 @@ import {
   Notification
 } from '../data/mockData'
 
-export type UserRole = 'applicant' | 'recruiter'
+export type UserRole = 'applicant' | 'recruiter' | 'admin'
 
 export interface CompanyProfileData {
   id: string

@@ -3,6 +3,7 @@ import { LandingPage } from './components/LandingPage'
 import { AuthPage } from './components/AuthPage'
 import { ApplicantDashboard } from './components/ApplicantDashboard'
 import { RecruiterDashboard } from './components/RecruiterDashboard'
+import { AdminDashboard } from './components/AdminDashboard'
 import { JobListings } from './components/JobListings'
 import { JobDetails } from './components/JobDetails'
 import { Notifications } from './components/Notifications'
@@ -18,6 +19,7 @@ export const router = createHashRouter([
   { path: '/auth', Component: AuthPage },
   { path: '/app/applicant', Component: ApplicantDashboard },
   { path: '/app/recruiter', Component: RecruiterDashboard },
+  { path: '/app/admin', Component: AdminDashboard },
   { path: '/jobs', Component: JobListings },
   { path: '/jobs/:id', Component: JobDetails },
   { path: '/notifications', Component: Notifications },

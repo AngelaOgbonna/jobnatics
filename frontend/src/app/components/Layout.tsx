@@ -6,7 +6,7 @@ import { auth } from '../firebase'
 import {
   LayoutDashboard, Briefcase, FileText, Sparkles, MessageSquare,
   Bell, Bookmark, UserCircle, Settings, LogOut, Users, BarChart3,
-  Moon, Sun, Menu, X, ChevronRight, Search, Zap, Building2,
+  Moon, Sun, Menu, X, ChevronRight, Search, Zap, Building2, Shield
 } from 'lucide-react'
 
 interface NavItem {
@@ -36,6 +36,10 @@ const recruiterNav: NavItem[] = [
   { label: 'Company', icon: Building2, path: '/company/stripe' },
 ]
 
+const adminNav: NavItem[] = [
+  { label: 'System Config', icon: Shield, path: '/app/admin' },
+]
+
 export function Layout({ children }: { children: ReactNode }) {
   const { user, setUser, darkMode, toggleDarkMode, sidebarOpen, setSidebarOpen, companies, loadingData } = useApp()
   const navigate = useNavigate()
@@ -56,8 +60,21 @@ export function Layout({ children }: { children: ReactNode }) {
     return item
   })
 
-  const nav = user?.role === 'recruiter' ? dynamicRecruiterNav : applicantNav
+  const nav = user?.role === 'admin' 
+    ? adminNav 
+    : (user?.role === 'recruiter' ? dynamicRecruiterNav : applicantNav)
 
+  // Redirect logic
+  useEffect(() => {
+    if (!loadingData && user) {
+      if (user.role === 'admin' && location.pathname !== '/app/admin') {
+         // let them browse jobs if they want, but probably their default route is /app/admin
+         if (location.pathname === '/' || location.pathname === '/app/applicant' || location.pathname === '/app/recruiter') {
+             navigate('/app/admin')
+         }
+      }
+    }
+  }, [user, loadingData, location.pathname, navigate])
   useEffect(() => {
     if (user && !loadingData) {
       const needsCompanySetup = user.role === 'recruiter' && !user.company && !companies.some(c => c.postedBy === user.id)

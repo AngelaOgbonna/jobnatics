@@ -24,6 +24,7 @@ import nltk
 from nltk.corpus import stopwords
 from nltk.tokenize import word_tokenize
 from nltk.stem import PorterStemmer
+from api.config import FairnessConfigModel, get_fairness_config, update_fairness_config
 
 # Configure NLTK to download to a writable directory on Vercel
 import os
@@ -629,6 +630,15 @@ def batch_match(payload: BatchPayload):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+# ── Admin Endpoints ─────────────────────────────────────────────────────────────
+@app.get("/api/config/fairness")
+def get_fairness_cfg():
+    return get_fairness_config()
+
+@app.put("/api/config/fairness")
+def update_fairness_cfg(config: FairnessConfigModel):
+    return update_fairness_config(config)
+
 # ── Endpoint 5: Match job description against candidates ──────────────────────
 
 @app.post("/api/match-job")
@@ -661,8 +671,9 @@ def match_job(payload: JobPayload):
         df_results['score'] = scores
         df_results['base_outcome'] = (df_results['score'] >= BASE_THRESHOLD).astype(int)
 
-        # Evaluate fairness on the top 100 highest scoring candidates to see cohort-level parity
-        df_top_cohort = df_results.sort_values(by='score', ascending=False).head(100).copy()
+        config = get_fairness_config()
+        # Evaluate fairness on the top N highest scoring candidates to see cohort-level parity
+        df_top_cohort = df_results.sort_values(by='score', ascending=False).head(config.top_n_cohort).copy()
 
         # Compute DPD and DIR before correction on the top cohort
         dpd_before = float(demographic_parity_difference(
@@ -681,7 +692,7 @@ def match_job(payload: JobPayload):
         if np.isnan(dir_before):
             dir_before = 1.0
 
-        violation = dpd_before > 0.10 or dir_before < 0.80
+        violation = dpd_before > config.DPD_threshold or dir_before < config.DIR_threshold
         correction_applied = False
         optimizer_used = "none"
 
@@ -733,10 +744,10 @@ def match_job(payload: JobPayload):
         if np.isnan(dir_after):
             dir_after = 1.0
 
-        # Sort the top cohort to return the top 10 recommended candidates
+        # Sort the top cohort to return the top N recommended candidates
         top_candidates = df_top_cohort.sort_values(
             by=['fair_outcome', 'score'], ascending=[False, False]
-        ).head(10)
+        ).head(config.top_n_recommended)
 
         return {
             "cohort_size": len(df_top_cohort),
@@ -746,18 +757,18 @@ def match_job(payload: JobPayload):
                 "before_correction": {
                     "DPD": round(dpd_before, 4),
                     "DIR": round(dir_before, 4),
-                    "DPD_status": "PASS" if dpd_before <= 0.10 else "FLAG",
-                    "DIR_status": "PASS" if dir_before >= 0.80 else "FLAG"
+                    "DPD_status": "PASS" if dpd_before <= config.DPD_threshold else "FLAG",
+                    "DIR_status": "PASS" if dir_before >= config.DIR_threshold else "FLAG"
                 },
                 "after_correction": {
                     "DPD": round(dpd_after, 4),
                     "DIR": round(dir_after, 4),
-                    "DPD_status": "PASS" if dpd_after <= 0.10 else "FLAG",
-                    "DIR_status": "PASS" if dir_after >= 0.80 else "FLAG"
+                    "DPD_status": "PASS" if dpd_after <= config.DPD_threshold else "FLAG",
+                    "DIR_status": "PASS" if dir_after >= config.DIR_threshold else "FLAG"
                 },
                 "thresholds": {
-                    "DPD_threshold": 0.10,
-                    "DIR_threshold": 0.80
+                    "DPD_threshold": config.DPD_threshold,
+                    "DIR_threshold": config.DIR_threshold
                 }
             },
             "candidates": [

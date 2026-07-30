@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router'
 import { useApp, User } from '../context/AppContext'
-import { Zap, Eye, EyeOff, ArrowLeft, Sparkles, Users, CheckCircle2, ArrowRight } from 'lucide-react'
+import { Zap, Eye, EyeOff, ArrowLeft, Sparkles, Users, CheckCircle2, ArrowRight, Shield } from 'lucide-react'
 import { motion, AnimatePresence } from 'motion/react'
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword, updateProfile } from 'firebase/auth'
 import { doc, getDoc, setDoc } from 'firebase/firestore'
@@ -9,7 +9,7 @@ import { auth, db } from '../firebase'
 import { toast } from 'sonner'
 
 type Mode = 'signin' | 'signup'
-type Role = 'applicant' | 'recruiter'
+type Role = 'applicant' | 'recruiter' | 'admin'
 
 export function AuthPage() {
   const navigate = useNavigate()
@@ -62,8 +62,10 @@ export function AuthPage() {
         }
         
         setErrors({})
-        setStep(2)
-        return
+        if (role !== 'admin') {
+          setStep(2)
+          return
+        }
       } else {
         if (role === 'recruiter' && !form.company.trim()) {
           newErrors.company = 'Company name is required.'
@@ -111,10 +113,10 @@ export function AuthPage() {
           email: form.email,
           role,
           company: role === 'recruiter' ? form.company : '',
-          title: role === 'applicant' ? form.title : 'Senior Frontend Engineer',
+          title: role === 'applicant' ? form.title : (role === 'admin' ? 'System Administrator' : 'Senior Frontend Engineer'),
           avatar: role === 'recruiter'
             ? 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=64&h=64&fit=crop&crop=face'
-            : 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=64&h=64&fit=crop&crop=face',
+            : (role === 'admin' ? 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=64&h=64&fit=crop&crop=face' : 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=64&h=64&fit=crop&crop=face'),
           profileSetupCompleted: false,
         }
 
@@ -272,7 +274,7 @@ export function AuthPage() {
           {mode === 'signup' && step === 1 && (
             <div className="mb-6">
               <p className="text-sm text-muted-foreground mb-3">I am a...</p>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-3 gap-3">
                 <button
                   onClick={() => setRole('applicant')}
                   className={`flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all duration-200 group ${
@@ -283,7 +285,7 @@ export function AuthPage() {
                 >
                   <Sparkles size={20} strokeWidth={1.75} fill={role === 'applicant' ? 'currentColor' : 'none'} fillOpacity={0.15} className={`transition-transform duration-300 ${role === 'applicant' ? 'animate-pulse' : 'group-hover:scale-105'}`} />
                   <span className="text-sm font-medium">Job Seeker</span>
-                  <span className="text-xs opacity-70">Find opportunities</span>
+                  <span className="text-xs opacity-70 text-center">Find opportunities</span>
                 </button>
                 <button
                   onClick={() => setRole('recruiter')}
@@ -295,7 +297,19 @@ export function AuthPage() {
                 >
                   <Users size={20} strokeWidth={1.75} fill={role === 'recruiter' ? 'currentColor' : 'none'} fillOpacity={0.15} className={`transition-transform duration-300 ${role === 'recruiter' ? 'scale-105' : 'group-hover:scale-105'}`} />
                   <span className="text-sm font-medium">Recruiter</span>
-                  <span className="text-xs opacity-70">Hire talent</span>
+                  <span className="text-xs opacity-70 text-center">Hire talent</span>
+                </button>
+                <button
+                  onClick={() => setRole('admin')}
+                  className={`flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all duration-200 group ${
+                    role === 'admin'
+                      ? 'border-primary bg-primary/10 text-primary'
+                      : 'border-border text-muted-foreground hover:border-primary/30'
+                  }`}
+                >
+                  <Shield size={20} strokeWidth={1.75} fill={role === 'admin' ? 'currentColor' : 'none'} fillOpacity={0.15} className={`transition-transform duration-300 ${role === 'admin' ? 'scale-105' : 'group-hover:scale-105'}`} />
+                  <span className="text-sm font-medium">Admin</span>
+                  <span className="text-xs opacity-70 text-center">System config</span>
                 </button>
               </div>
             </div>
