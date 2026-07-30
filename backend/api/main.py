@@ -832,7 +832,7 @@ def match_applicants(payload: ApplicantMatchPayload):
 
             matches.append({
                 "applicant_id": app_item.applicant_id,
-                "score": match_percentage,
+                "score": round(score, 4),
                 "base_outcome": base_outcome,
                 "why_match": why,
             })
