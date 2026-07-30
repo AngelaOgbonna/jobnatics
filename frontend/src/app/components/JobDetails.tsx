@@ -22,7 +22,7 @@ const matchBreakdown = [
 export function JobDetails() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
-  const { user, jobs, applicantApplications, loadingData, addApplicantApplication, aiMatchScores } = useApp()
+  const { user, jobs, applicantApplications, loadingData, addApplicantApplication, aiMatchScores, matchedJobs } = useApp()
   const [saved, setSaved] = useState(false)
   const [applied, setApplied] = useState(false)
   const [applyLoading, setApplyLoading] = useState(false)
@@ -34,6 +34,8 @@ export function JobDetails() {
       ? calculateJobMatchScore(user.skills, rawJob.skills, rawJob.id, rawJob.title, rawJob.company, aiMatchScores)
       : 75
   } : undefined
+
+  const aiRec = job ? matchedJobs?.find(m => m.id === job.id || (m.job_title === job.title && m.company === job.company)) : null
 
   // Initialize and sync saved state
   useEffect(() => {
@@ -351,14 +353,38 @@ export function JobDetails() {
                         </>
                       )}
                     </button>
-                    <div className="text-center text-xs text-muted-foreground">
-                      AI will craft a personalized cover letter and optimize your application
-                    </div>
+                    {job.match === 0 ? (
+                      <div className="text-center text-xs text-amber-500/90 mt-2 px-2 flex flex-col items-center gap-1">
+                        <AlertCircle size={12} />
+                        Due to a low match score, you might not hear back from recruiters for this role.
+                      </div>
+                    ) : (
+                      <div className="text-center text-xs text-muted-foreground">
+                        AI will craft a personalized cover letter and optimize your application
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
 
-
+              {aiRec && aiRec.why_match && aiRec.why_match.length > 0 && (
+                <div className="p-5 rounded-2xl bg-card border border-border">
+                  <div className="text-xs uppercase font-bold text-primary mb-3 flex items-center gap-1.5">
+                    <Sparkles size={14} /> AI Match Analysis
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {aiRec.why_match.map((w: { term: string; contribution: number }) => (
+                      <span
+                        key={w.term}
+                        className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-primary/10 text-primary border border-primary/20"
+                        title={`Match contribution: ${w.contribution}`}
+                      >
+                        {w.term}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               {/* Deadline */}
               <div className="flex items-center gap-3 p-4 rounded-xl bg-amber-500/5 border border-amber-500/20">
