@@ -202,7 +202,11 @@ export function RecruiterDashboard() {
         throw new Error(`Server returned status ${res.status}`)
       }
       const data = await res.json()
-      setFairnessAuditResults(data.fairness_metrics || data.system_fairness_metrics)
+      let metrics = data.fairness_metrics?.after_correction || data.fairness_metrics || data.system_fairness_metrics
+      if (metrics && !metrics.status) {
+        metrics.status = (metrics.DPD_status === 'FLAG' || metrics.DIR_status === 'FLAG') ? 'FLAG' : 'PASS'
+      }
+      setFairnessAuditResults(metrics)
     } catch (err: any) {
       setAuditError(err.message || 'An error occurred during the fairness audit.')
     } finally {
