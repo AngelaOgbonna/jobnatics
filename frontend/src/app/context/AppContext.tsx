@@ -436,12 +436,20 @@ export function AppProvider({ children }: { children: ReactNode }) {
           [user.title, user.roleLevel, user.workStyle, user.bio, user.location, user.github].filter(Boolean).join('\n') ||
           'No resume details provided.'
 
+        const liveJobs = jobs.map(j => ({
+          id: j.id,
+          title: j.title,
+          company: j.company,
+          description: j.description || (j.title + ' ' + (j.skills || []).join(' '))
+        }))
+
         const res = await fetch(`${BACKEND_URL}/api/match`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             resume_text: resumeText,
             demographic_group: 0,
+            live_jobs: liveJobs,
           }),
         })
         if (res.ok) {

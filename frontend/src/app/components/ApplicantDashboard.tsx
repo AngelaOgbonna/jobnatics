@@ -185,6 +185,7 @@ export function ApplicantDashboard() {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [uploadingResume, setUploadingResume] = useState(false)
   const [showCvModal, setShowCvModal] = useState(false)
+  const [selectedAIJob, setSelectedAIJob] = useState<any | null>(null)
 
 
 
@@ -195,19 +196,21 @@ export function ApplicantDashboard() {
           j.company.toLowerCase().trim() === rec.company.toLowerCase().trim()
       )
       return {
-        id: fullJob?.id || `fallback-${i}`,
+        id: fullJob?.id || `ai-${i}`,
         title: rec.job_title,
         company: rec.company,
         location: fullJob?.location || 'Remote',
         salary: fullJob?.salary || '$80K – $120K',
         posted: fullJob?.posted || 'Just now',
         remote: fullJob?.remote || 'remote',
-        skills: fullJob?.skills || ['Engineering'],
+        skills: fullJob?.skills || [],
         match: Math.round(rec.similarity_score * 100),
-        recommended: rec.recommended
+        recommended: rec.recommended,
+        why_match: rec.why_match || [],
+        hasFirestoreJob: !!fullJob,
       }
     }).slice(0, 5)
-    : jobs.slice(0, 5).map(j => ({ ...j, match: j.match || 85, recommended: true }))
+    : jobs.slice(0, 5).map(j => ({ ...j, match: j.match || 85, recommended: true, why_match: [], hasFirestoreJob: true }))
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -320,8 +323,9 @@ export function ApplicantDashboard() {
   const experienceScore = Math.max(skillsAlignmentScore - 5, 60)
 
   return (
+    <>
     <Layout>
-      <div className="p-6 max-w-7xl mx-auto">
+      <div className="min-h-screen bg-background">
 
         {/* Welcome Header */}
         <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 mb-8 pb-6 border-b border-border/30">
@@ -467,7 +471,13 @@ export function ApplicantDashboard() {
                       animate={{ opacity: 1, x: 0 }}
                       transition={{ delay: i * 0.05 }}
                       className="group p-4 rounded-xl bg-card border border-border/30 hover:border-primary/20 transition-all cursor-pointer"
-                      onClick={() => navigate(`/jobs/${job.id}`)}
+                      onClick={() => {
+                        if (job.hasFirestoreJob) {
+                          navigate(`/jobs/${job.id}`)
+                        } else {
+                          setSelectedAIJob(job)
+                        }
+                      }}
                     >
                       <div className="flex items-start gap-4">
                         <div className="w-10 h-10 rounded-lg bg-muted/40 border border-border/30 flex items-center justify-center flex-shrink-0 text-sm">
@@ -507,6 +517,24 @@ export function ApplicantDashboard() {
                               </span>
                             ))}
                           </div>
+                          {job.why_match && job.why_match.length > 0 && (
+                            <div className="mt-2.5 p-2 rounded-lg bg-primary/5 border border-primary/10">
+                              <div className="text-[9px] uppercase font-bold text-primary/70 mb-1.5 flex items-center gap-1">
+                                <Sparkles size={8} /> Why you were matched
+                              </div>
+                              <div className="flex flex-wrap gap-1">
+                                {job.why_match.slice(0, 4).map((w: { term: string; contribution: number }) => (
+                                  <span
+                                    key={w.term}
+                                    className="inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-semibold bg-primary/10 text-primary border border-primary/20"
+                                    title={`Match contribution: ${w.contribution}`}
+                                  >
+                                    {w.term}
+                                  </span>
+                                ))}
+                              </div>
+                            </div>
+                          )}
                         </div>
                         <div className="flex flex-col gap-2 flex-shrink-0">
                           <button
@@ -517,7 +545,14 @@ export function ApplicantDashboard() {
                             <Bookmark size={13} className={savedJobs.includes(job.id) ? 'fill-primary' : ''} />
                           </button>
                           <button
-                            onClick={e => { e.stopPropagation(); navigate(`/jobs/${job.id}`) }}
+                            onClick={e => {
+                              e.stopPropagation()
+                              if (job.hasFirestoreJob) {
+                                navigate(`/jobs/${job.id}`)
+                              } else {
+                                setSelectedAIJob(job)
+                              }
+                            }}
                             className="w-7 h-7 rounded-md bg-primary/5 border border-primary/10 text-primary flex items-center justify-center hover:bg-primary/10 transition-colors"
                           >
                             <ArrowUpRight size={13} />
@@ -677,5 +712,115 @@ export function ApplicantDashboard() {
         </div>
       )}
     </Layout>
+
+      {/* AI Job Detail Modal — for recommendations not yet posted in Firestore */}
+      {selectedAIJob && (
+        <div
+          className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-background/70 backdrop-blur-sm"
+          onClick={() => setSelectedAIJob(null)}
+        >
+          <motion.div
+            initial={{ opacity: 0, y: 40 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 40 }}
+            transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+            className="w-full max-w-lg bg-card border border-border rounded-2xl shadow-2xl overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="flex items-start justify-between p-5 border-b border-border/40 bg-muted/10">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center text-xl">
+                  💼
+                </div>
+                <div>
+                  <h2 className="font-bold text-foreground" style={{ fontFamily: 'Outfit, sans-serif' }}>{selectedAIJob.title}</h2>
+                  <p className="text-xs text-muted-foreground mt-0.5">{selectedAIJob.company}</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold border ${
+                  selectedAIJob.match >= 90 ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' :
+                  selectedAIJob.match >= 80 ? 'bg-primary/10 text-primary border-primary/20' :
+                  'bg-amber-500/10 text-amber-400 border-amber-500/20'
+                }`}>
+                  <Sparkles size={9} strokeWidth={1.75} className="animate-pulse" />
+                  {selectedAIJob.match}% Match
+                </span>
+                <button
+                  onClick={() => setSelectedAIJob(null)}
+                  className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  <X size={14} />
+                </button>
+              </div>
+            </div>
+
+            {/* Body */}
+            <div className="p-5 space-y-4">
+              {/* Meta */}
+              <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
+                <span className="flex items-center gap-1"><MapPin size={12} /> {selectedAIJob.location}</span>
+                <span className="flex items-center gap-1"><DollarSign size={12} /> {selectedAIJob.salary}</span>
+                <span className="flex items-center gap-1"><Briefcase size={12} /> {selectedAIJob.remote}</span>
+              </div>
+
+              {/* Why matched */}
+              {selectedAIJob.why_match && selectedAIJob.why_match.length > 0 && (
+                <div className="p-3 rounded-xl bg-primary/5 border border-primary/10">
+                  <div className="text-[10px] uppercase font-bold text-primary/70 mb-2 flex items-center gap-1">
+                    <Sparkles size={9} /> Why you were matched
+                  </div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {selectedAIJob.why_match.map((w: { term: string; contribution: number }) => (
+                      <span
+                        key={w.term}
+                        className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-primary/10 text-primary border border-primary/20"
+                        title={`Match contribution: ${w.contribution}`}
+                      >
+                        {w.term}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Skills */}
+              {selectedAIJob.skills && selectedAIJob.skills.length > 0 && (
+                <div>
+                  <div className="text-[10px] uppercase font-bold text-muted-foreground mb-2">Key Skills</div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {selectedAIJob.skills.slice(0, 8).map((s: string) => (
+                      <span key={s} className="px-2.5 py-0.5 rounded-lg bg-muted text-xs font-medium">{s}</span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Note */}
+              <p className="text-xs text-muted-foreground leading-relaxed bg-muted/30 rounded-lg p-3">
+                This role was identified by the AI matching engine from a broader job dataset. Browse the Jobs board or check back soon — it may appear as a live posting.
+              </p>
+            </div>
+
+            {/* Footer */}
+            <div className="px-5 pb-5 flex gap-2">
+              <button
+                onClick={() => { setSelectedAIJob(null); navigate('/jobs') }}
+                className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-primary text-white text-sm font-semibold hover:bg-primary/90 transition-all"
+              >
+                <Target size={14} /> Browse Similar Jobs
+              </button>
+              <button
+                onClick={() => setSelectedAIJob(null)}
+                className="px-4 py-2.5 rounded-xl border border-border text-sm text-muted-foreground hover:bg-muted transition-colors"
+              >
+                Close
+              </button>
+            </div>
+          </motion.div>
+        </div>
+      )}
+  </>
   )
 }

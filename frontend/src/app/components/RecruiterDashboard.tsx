@@ -81,7 +81,7 @@ export function RecruiterDashboard() {
   const [matchingError, setMatchingError] = useState<string | null>(null)
 
   const [selectedManageJob, setSelectedManageJob] = useState<any | null>(null)
-  const [applicantScores, setApplicantScores] = useState<Record<string, { score: number, base_outcome: boolean }>>({})
+  const [applicantScores, setApplicantScores] = useState<Record<string, { score: number, base_outcome: boolean, why_match?: { term: string; contribution: number }[] }>>({})
 
   // Fetch match scores for job postings overview (Top Match column)
   useEffect(() => {
@@ -120,11 +120,12 @@ export function RecruiterDashboard() {
 
         if (res.ok) {
           const data = await res.json()
-          const scoresMap: Record<string, { score: number, base_outcome: boolean }> = {}
+          const scoresMap: Record<string, { score: number, base_outcome: boolean, why_match?: { term: string; contribution: number }[] }> = {}
           data.matches.forEach((m: any) => {
             scoresMap[m.applicant_id] = {
               score: m.score,
-              base_outcome: m.base_outcome
+              base_outcome: m.base_outcome,
+              why_match: m.why_match || [],
             }
           })
           setApplicantScores(scoresMap)
@@ -223,7 +224,8 @@ export function RecruiterDashboard() {
           reranked: cand.reranked,
           demographic_group: cand.demographic_group,
           resumeUrl: realUser?.resumeUrl || "https://res.cloudinary.com/demo/image/upload/v1234567890/sample.pdf",
-          resumeName: realUser?.resumeName || "resume.pdf"
+          resumeName: realUser?.resumeName || "resume.pdf",
+          why_match: cand.why_match || [],
         }
       })
 
@@ -439,7 +441,33 @@ export function RecruiterDashboard() {
                                 </div>
                               </div>
 
-                              <div className="flex flex-wrap items-center gap-4">
+                              <div className="flex flex-wrap items-start gap-4">
+
+                                {/* AI Match Score + why_match pills */}
+                                {applicantScores[app.userId] !== undefined && (
+                                  <div className="space-y-1.5">
+                                    <div className="text-[9px] uppercase font-bold text-muted-foreground">AI Match</div>
+                                    <MatchBadge score={Math.round(applicantScores[app.userId].score)} />
+                                    {applicantScores[app.userId].why_match && applicantScores[app.userId].why_match!.length > 0 && (
+                                      <div className="mt-2 p-2 rounded-lg bg-primary/5 border border-primary/10">
+                                        <div className="text-[9px] uppercase font-bold text-primary/70 mb-1.5 flex items-center gap-1">
+                                          <Sparkles size={8} /> Why recommended
+                                        </div>
+                                        <div className="flex flex-wrap gap-1">
+                                          {applicantScores[app.userId].why_match!.slice(0, 5).map((w) => (
+                                            <span
+                                              key={w.term}
+                                              className="inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-semibold bg-primary/10 text-primary border border-primary/20"
+                                              title={`Match contribution: ${w.contribution}`}
+                                            >
+                                              {w.term}
+                                            </span>
+                                          ))}
+                                        </div>
+                                      </div>
+                                    )}
+                                  </div>
+                                )}
                                 {/* Status Selector */}
                                 <div>
                                   <div className="text-[9px] uppercase font-bold text-muted-foreground mb-1">Status</div>
@@ -748,6 +776,7 @@ export function RecruiterDashboard() {
                                   <th className="px-5 py-3 text-[10px] font-bold uppercase tracking-wider text-muted-foreground w-56">Candidate</th>
                                   <th className="px-5 py-3 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Bio</th>
                                   <th className="px-5 py-3 text-[10px] font-bold uppercase tracking-wider text-muted-foreground w-28">Fit Score</th>
+                                  <th className="px-5 py-3 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Why Matched</th>
                                   <th className="px-5 py-3 text-[10px] font-bold uppercase tracking-wider text-muted-foreground w-44">Recommendation</th>
                                   <th className="px-5 py-3 text-[10px] font-bold uppercase tracking-wider text-muted-foreground w-10"></th>
                                 </tr>
@@ -789,6 +818,25 @@ export function RecruiterDashboard() {
                                     </td>
                                     <td className="px-5 py-4 text-xs">
                                       <MatchBadge score={Math.round(cand.similarity_score * 100)} />
+                                    </td>
+                                    <td className="px-5 py-4">
+                                      {cand.why_match && cand.why_match.length > 0 ? (
+                                        <div className="p-2 rounded-lg bg-primary/5 border border-primary/10 max-w-[200px]">
+                                          <div className="flex flex-wrap gap-1">
+                                            {cand.why_match.slice(0, 4).map((w: { term: string; contribution: number }) => (
+                                              <span
+                                                key={w.term}
+                                                className="inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-semibold bg-primary/10 text-primary border border-primary/20"
+                                                title={`Match contribution: ${w.contribution}`}
+                                              >
+                                                {w.term}
+                                              </span>
+                                            ))}
+                                          </div>
+                                        </div>
+                                      ) : (
+                                        <span className="text-[10px] text-muted-foreground">—</span>
+                                      )}
                                     </td>
                                     <td className="px-5 py-4">
                                       <div className="flex items-center gap-2">
