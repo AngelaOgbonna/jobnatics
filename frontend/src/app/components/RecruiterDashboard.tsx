@@ -517,21 +517,16 @@ export function RecruiterDashboard() {
                                           </div>
                                         )}
                                         {applicantScores[app.userId].why_match && applicantScores[app.userId].why_match!.length > 0 && (
-                                          <div className="mt-2 p-2 rounded-lg bg-primary/5 border border-primary/10">
-                                            <div className="text-[9px] uppercase font-bold text-primary/70 mb-1.5 flex items-center gap-1">
-                                              <Sparkles size={8} /> Why recommended
+                                          <div className="mt-2 p-3 rounded-lg bg-primary/5 border border-primary/10">
+                                            <div className="text-[10px] uppercase font-bold text-primary/80 mb-1 flex items-center gap-1.5">
+                                              <Sparkles size={10} /> Why recommended
                                             </div>
-                                            <div className="flex flex-wrap gap-1">
-                                              {applicantScores[app.userId].why_match!.slice(0, 5).map((w) => (
-                                                <span
-                                                  key={w.term}
-                                                  className="inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-semibold bg-primary/10 text-primary border border-primary/20"
-                                                  title={`Match contribution: ${w.contribution}`}
-                                                >
-                                                  {w.term}
-                                                </span>
-                                              ))}
-                                            </div>
+                                            <p className="text-xs text-muted-foreground leading-relaxed">
+                                              This candidate is a strong match for this role, specifically due to their experience with{' '}
+                                              <span className="font-semibold text-primary/90">
+                                                {applicantScores[app.userId].why_match!.slice(0, 4).map((w: any) => w.term).join(', ').replace(/, ([^,]*)$/, ', and $1')}
+                                              </span>.
+                                            </p>
                                           </div>
                                         )}
                                       </div>
@@ -739,17 +734,12 @@ export function RecruiterDashboard() {
                                     <td className="px-5 py-4">
                                       {cand.why_match && cand.why_match.length > 0 ? (
                                         <div className="p-2 rounded-lg bg-primary/5 border border-primary/10 max-w-[200px]">
-                                          <div className="flex flex-wrap gap-1">
-                                            {cand.why_match.slice(0, 4).map((w: { term: string; contribution: number }) => (
-                                              <span
-                                                key={w.term}
-                                                className="inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-semibold bg-primary/10 text-primary border border-primary/20"
-                                                title={`Match contribution: ${w.contribution}`}
-                                              >
-                                                {w.term}
-                                              </span>
-                                            ))}
-                                          </div>
+                                          <p className="text-[10px] text-muted-foreground leading-relaxed">
+                                            Match driven by experience with{' '}
+                                            <span className="font-semibold text-primary/90">
+                                              {cand.why_match.slice(0, 4).map((w: any) => w.term).join(', ').replace(/, ([^,]*)$/, ', and $1')}
+                                            </span>.
+                                          </p>
                                         </div>
                                       ) : (
                                         <span className="text-[10px] text-muted-foreground">—</span>

@@ -354,21 +354,16 @@ export function AIRecommendations() {
                       </div>
                       {job.why_match && job.why_match.length > 0 && (
                         <div className="pl-12 pr-2">
-                          <div className="p-2 rounded-lg bg-primary/5 border border-primary/10">
-                            <div className="text-[9px] uppercase font-bold text-primary/70 mb-1.5 flex items-center gap-1">
-                              <Sparkles size={8} /> Why you were matched
+                          <div className="p-3 rounded-lg bg-primary/5 border border-primary/10">
+                            <div className="text-[10px] uppercase font-bold text-primary/80 mb-1 flex items-center gap-1.5">
+                              <Sparkles size={10} /> Why you were matched
                             </div>
-                            <div className="flex flex-wrap gap-1">
-                              {job.why_match.slice(0, 5).map((w: { term: string; contribution: number }) => (
-                                <span
-                                  key={w.term}
-                                  className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-primary/10 text-primary border border-primary/20"
-                                  title={`Match contribution: ${w.contribution}`}
-                                >
-                                  {w.term}
-                                </span>
-                              ))}
-                            </div>
+                            <p className="text-xs text-muted-foreground leading-relaxed">
+                              Your background is a strong match for this role, specifically due to your experience with{' '}
+                              <span className="font-semibold text-primary/90">
+                                {job.why_match.slice(0, 4).map((w: any) => w.term).join(', ').replace(/, ([^,]*)$/, ', and $1')}
+                              </span>.
+                            </p>
                           </div>
                         </div>
                       )}
@@ -515,21 +510,16 @@ export function AIRecommendations() {
 
               {/* Why matched */}
               {selectedAIJob.why_match && selectedAIJob.why_match.length > 0 && (
-                <div className="p-3 rounded-xl bg-primary/5 border border-primary/10">
-                  <div className="text-[10px] uppercase font-bold text-primary/70 mb-2 flex items-center gap-1">
-                    <Sparkles size={9} /> Why you were matched
+                <div className="p-4 rounded-xl bg-primary/5 border border-primary/10">
+                  <div className="text-[11px] uppercase font-bold text-primary/80 mb-1.5 flex items-center gap-1.5">
+                    <Sparkles size={11} /> Why you were matched
                   </div>
-                  <div className="flex flex-wrap gap-1.5">
-                    {selectedAIJob.why_match.map((w: { term: string; contribution: number }) => (
-                      <span
-                        key={w.term}
-                        className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-primary/10 text-primary border border-primary/20"
-                        title={`Match contribution: ${w.contribution}`}
-                      >
-                        {w.term}
-                      </span>
-                    ))}
-                  </div>
+                  <p className="text-sm text-muted-foreground leading-relaxed">
+                    Your background is a strong match for this role, specifically due to your experience with{' '}
+                    <span className="font-semibold text-primary/90">
+                      {selectedAIJob.why_match.map((w: any) => w.term).join(', ').replace(/, ([^,]*)$/, ', and $1')}
+                    </span>.
+                  </p>
                 </div>
               )}
 

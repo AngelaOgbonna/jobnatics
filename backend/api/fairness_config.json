@@ -1,6 +1,6 @@
 {
-    "DIR_threshold": 0.8,
-    "DPD_threshold": 0.1,
+    "DIR_threshold": 0.5,
+    "DPD_threshold": 0.3,
     "top_n_cohort": 99,
-    "top_n_recommended": 10
+    "top_n_recommended": 5
 }

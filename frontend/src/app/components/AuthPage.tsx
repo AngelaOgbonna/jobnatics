@@ -33,10 +33,10 @@ export function AuthPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    
+
     const newErrors: Record<string, string> = {}
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-    
+
     if (mode === 'signup') {
       if (step === 1) {
         if (!form.name.trim()) {
@@ -54,13 +54,13 @@ export function AuthPage() {
         } else if (form.password.length < 6) {
           newErrors.password = 'Password must be at least 6 characters.'
         }
-        
+
         if (Object.keys(newErrors).length > 0) {
           setErrors(newErrors)
           toast.error('Please fix the validation errors before continuing.')
           return
         }
-        
+
         setErrors({})
         if (role !== 'admin') {
           setStep(2)
@@ -73,7 +73,7 @@ export function AuthPage() {
         if (role === 'applicant' && !form.title.trim()) {
           newErrors.title = 'Desired job title is required.'
         }
-        
+
         if (Object.keys(newErrors).length > 0) {
           setErrors(newErrors)
           toast.error('Please fill in the required field.')
@@ -89,7 +89,7 @@ export function AuthPage() {
       if (!form.password) {
         newErrors.password = 'Password is required.'
       }
-      
+
       if (Object.keys(newErrors).length > 0) {
         setErrors(newErrors)
         toast.error('Please enter your email and password correctly.')
@@ -261,9 +261,8 @@ export function AuthPage() {
               <button
                 key={m}
                 onClick={() => { setMode(m); setStep(1) }}
-                className={`flex-1 py-2 text-sm font-medium rounded-lg transition-all duration-200 ${
-                  mode === m ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
-                }`}
+                className={`flex-1 py-2 text-sm font-medium rounded-lg transition-all duration-200 ${mode === m ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
+                  }`}
               >
                 {m === 'signin' ? 'Sign In' : 'Sign Up'}
               </button>
@@ -277,11 +276,10 @@ export function AuthPage() {
               <div className="grid grid-cols-3 gap-3">
                 <button
                   onClick={() => setRole('applicant')}
-                  className={`flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all duration-200 group ${
-                    role === 'applicant'
+                  className={`flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all duration-200 group ${role === 'applicant'
                       ? 'border-primary bg-primary/10 text-primary'
                       : 'border-border text-muted-foreground hover:border-primary/30'
-                  }`}
+                    }`}
                 >
                   <Sparkles size={20} strokeWidth={1.75} fill={role === 'applicant' ? 'currentColor' : 'none'} fillOpacity={0.15} className={`transition-transform duration-300 ${role === 'applicant' ? 'animate-pulse' : 'group-hover:scale-105'}`} />
                   <span className="text-sm font-medium">Job Seeker</span>
@@ -289,11 +287,10 @@ export function AuthPage() {
                 </button>
                 <button
                   onClick={() => setRole('recruiter')}
-                  className={`flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all duration-200 group ${
-                    role === 'recruiter'
+                  className={`flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all duration-200 group ${role === 'recruiter'
                       ? 'border-primary bg-primary/10 text-primary'
                       : 'border-border text-muted-foreground hover:border-primary/30'
-                  }`}
+                    }`}
                 >
                   <Users size={20} strokeWidth={1.75} fill={role === 'recruiter' ? 'currentColor' : 'none'} fillOpacity={0.15} className={`transition-transform duration-300 ${role === 'recruiter' ? 'scale-105' : 'group-hover:scale-105'}`} />
                   <span className="text-sm font-medium">Recruiter</span>
@@ -301,11 +298,10 @@ export function AuthPage() {
                 </button>
                 <button
                   onClick={() => setRole('admin')}
-                  className={`flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all duration-200 group ${
-                    role === 'admin'
+                  className={`flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all duration-200 group ${role === 'admin'
                       ? 'border-primary bg-primary/10 text-primary'
                       : 'border-border text-muted-foreground hover:border-primary/30'
-                  }`}
+                    }`}
                 >
                   <Shield size={20} strokeWidth={1.75} fill={role === 'admin' ? 'currentColor' : 'none'} fillOpacity={0.15} className={`transition-transform duration-300 ${role === 'admin' ? 'scale-105' : 'group-hover:scale-105'}`} />
                   <span className="text-sm font-medium">Admin</span>
@@ -338,11 +334,10 @@ export function AuthPage() {
                           setForm({ ...form, name: e.target.value })
                           if (errors.name) setErrors({ ...errors, name: '' })
                         }}
-                        className={`w-full px-4 py-3 rounded-xl bg-muted border focus:outline-none focus:ring-2 transition-all placeholder:text-muted-foreground ${
-                          errors.name 
-                            ? 'border-red-500/50 focus:border-red-500 focus:ring-red-500/20' 
+                        className={`w-full px-4 py-3 rounded-xl bg-muted border focus:outline-none focus:ring-2 transition-all placeholder:text-muted-foreground ${errors.name
+                            ? 'border-red-500/50 focus:border-red-500 focus:ring-red-500/20'
                             : 'border-border focus:border-primary focus:ring-primary/20'
-                        }`}
+                          }`}
                       />
                       {errors.name && (
                         <p className="text-[11px] text-red-400 mt-1 font-medium">{errors.name}</p>
@@ -359,11 +354,10 @@ export function AuthPage() {
                         setForm({ ...form, email: e.target.value })
                         if (errors.email) setErrors({ ...errors, email: '' })
                       }}
-                      className={`w-full px-4 py-3 rounded-xl bg-muted border focus:outline-none focus:ring-2 transition-all placeholder:text-muted-foreground ${
-                        errors.email 
-                          ? 'border-red-500/50 focus:border-red-500 focus:ring-red-500/20' 
+                      className={`w-full px-4 py-3 rounded-xl bg-muted border focus:outline-none focus:ring-2 transition-all placeholder:text-muted-foreground ${errors.email
+                          ? 'border-red-500/50 focus:border-red-500 focus:ring-red-500/20'
                           : 'border-border focus:border-primary focus:ring-primary/20'
-                      }`}
+                        }`}
                     />
                     {errors.email && (
                       <p className="text-[11px] text-red-400 mt-1 font-medium">{errors.email}</p>
@@ -380,11 +374,10 @@ export function AuthPage() {
                           setForm({ ...form, password: e.target.value })
                           if (errors.password) setErrors({ ...errors, password: '' })
                         }}
-                        className={`w-full px-4 py-3 pr-12 rounded-xl bg-muted border focus:outline-none focus:ring-2 transition-all placeholder:text-muted-foreground ${
-                          errors.password 
-                            ? 'border-red-500/50 focus:border-red-500 focus:ring-red-500/20' 
+                        className={`w-full px-4 py-3 pr-12 rounded-xl bg-muted border focus:outline-none focus:ring-2 transition-all placeholder:text-muted-foreground ${errors.password
+                            ? 'border-red-500/50 focus:border-red-500 focus:ring-red-500/20'
                             : 'border-border focus:border-primary focus:ring-primary/20'
-                        }`}
+                          }`}
                       />
                       <button
                         type="button"
@@ -424,11 +417,10 @@ export function AuthPage() {
                           if (errors.title) setErrors({ ...errors, title: '' })
                         }
                       }}
-                      className={`w-full px-4 py-3 rounded-xl bg-muted border focus:outline-none focus:ring-2 transition-all placeholder:text-muted-foreground ${
-                        (role === 'recruiter' ? errors.company : errors.title)
-                          ? 'border-red-500/50 focus:border-red-500 focus:ring-red-500/20' 
+                      className={`w-full px-4 py-3 rounded-xl bg-muted border focus:outline-none focus:ring-2 transition-all placeholder:text-muted-foreground ${(role === 'recruiter' ? errors.company : errors.title)
+                          ? 'border-red-500/50 focus:border-red-500 focus:ring-red-500/20'
                           : 'border-border focus:border-primary focus:ring-primary/20'
-                      }`}
+                        }`}
                     />
                     {role === 'recruiter' ? (
                       errors.company && <p className="text-[11px] text-red-400 mt-1 font-medium">{errors.company}</p>

@@ -381,17 +381,12 @@ export function JobDetails() {
                   <div className="text-xs uppercase font-bold text-primary mb-3 flex items-center gap-1.5">
                     <Sparkles size={14} /> AI Match Analysis
                   </div>
-                  <div className="flex flex-wrap gap-2">
-                    {aiRec.why_match.map((w: { term: string; contribution: number }) => (
-                      <span
-                        key={w.term}
-                        className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-primary/10 text-primary border border-primary/20"
-                        title={`Match contribution: ${w.contribution}`}
-                      >
-                        {w.term}
-                      </span>
-                    ))}
-                  </div>
+                  <p className="text-[13px] text-muted-foreground leading-relaxed">
+                    Our AI has determined that your background is a strong fit for this position. This match is specifically driven by your experience with{' '}
+                    <span className="font-semibold text-primary/90">
+                      {aiRec.why_match.map((w: any) => w.term).join(', ').replace(/, ([^,]*)$/, ', and $1')}
+                    </span>.
+                  </p>
                 </div>
               )}
 
