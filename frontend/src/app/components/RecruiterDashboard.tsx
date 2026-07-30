@@ -12,6 +12,7 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, LineChart, Line, AreaChart, Area, Legend
 } from 'recharts'
+import Plot from 'react-plotly.js'
 import { motion } from 'motion/react'
 import { doc, setDoc } from 'firebase/firestore'
 import { db, BACKEND_URL } from '../firebase'
@@ -73,6 +74,13 @@ export function RecruiterDashboard() {
 
   const [selectedJobId, setSelectedJobId] = useState<string>('')
   const [showCvModal, setShowCvModal] = useState(false)
+  const [showFilters, setShowFilters] = useState(false)
+
+  // Fairness Audit state
+  const [showFairnessModal, setShowFairnessModal] = useState(false)
+  const [fairnessAuditResults, setFairnessAuditResults] = useState<any>(null)
+  const [auditLoading, setAuditLoading] = useState(false)
+  const [auditError, setAuditError] = useState<string | null>(null)
   const [viewingCvUrl, setViewingCvUrl] = useState('')
   const [viewingCvName, setViewingCvName] = useState('')
   const [customJobDescription, setCustomJobDescription] = useState<string>('')
@@ -170,6 +178,35 @@ export function RecruiterDashboard() {
       setCustomJobDescription('')
     }
   }, [selectedJobId, jobs])
+
+  const handleAuditFairness = async () => {
+    if (!customJobDescription.trim()) return
+
+    setAuditLoading(true)
+    setAuditError(null)
+    setFairnessAuditResults(null)
+    setShowFairnessModal(true)
+
+    try {
+      const payload = {
+        job_description: customJobDescription,
+      }
+      const res = await fetch(`${BACKEND_URL}/api/match-job`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      })
+      if (!res.ok) {
+        throw new Error(`Server returned status ${res.status}`)
+      }
+      const data = await res.json()
+      setFairnessAuditResults(data.fairness_metrics || data.system_fairness_metrics)
+    } catch (err: any) {
+      setAuditError(err.message || 'An error occurred during the fairness audit.')
+    } finally {
+      setAuditLoading(false)
+    }
+  }
 
   const handleMatchCandidates = async () => {
     if (!customJobDescription.trim()) return
@@ -745,6 +782,24 @@ export function RecruiterDashboard() {
                           </>
                         )}
                       </button>
+
+                      <button
+                        onClick={handleAuditFairness}
+                        disabled={auditLoading || !customJobDescription.trim()}
+                        className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg border border-primary/20 hover:bg-primary/5 text-primary text-xs font-bold transition-all mt-3 active:scale-[0.98]"
+                      >
+                        {auditLoading ? (
+                          <>
+                            <RefreshCw size={13} className="animate-spin" />
+                            Running Audit...
+                          </>
+                        ) : (
+                          <>
+                            <BarChart3 size={13} />
+                            Audit System Fairness
+                          </>
+                        )}
+                      </button>
                     </div>
                   </div>
 
@@ -931,6 +986,150 @@ export function RecruiterDashboard() {
                 className="w-full h-full border border-border/30 rounded-lg shadow-sm"
                 title="CV Document Preview"
               />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Fairness Dashboard Modal */}
+      {showFairnessModal && fairnessAuditResults && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm transition-all duration-300">
+          <div className="w-full max-w-4xl max-h-[90vh] overflow-y-auto flex flex-col bg-card border border-border/80 rounded-xl shadow-2xl">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between px-5 py-4 border-b border-border/40 bg-muted/20">
+              <div className="flex items-center gap-2">
+                <BarChart3 size={16} className="text-primary" />
+                <h3 className="text-sm font-semibold text-foreground tracking-tight" style={{ fontFamily: 'Outfit, sans-serif' }}>
+                  AI Fairness Audit Dashboard
+                </h3>
+              </div>
+              <button
+                onClick={() => setShowFairnessModal(false)}
+                className="p-1.5 rounded-lg border border-border bg-card hover:bg-muted text-muted-foreground hover:text-foreground transition-all cursor-pointer"
+              >
+                <X size={14} />
+              </button>
+            </div>
+            
+            {/* Modal Content */}
+            <div className="p-6 space-y-6">
+              <div className="flex items-center justify-between p-4 bg-primary/5 rounded-lg border border-primary/10">
+                <div>
+                  <h4 className="text-sm font-bold text-foreground">Compliance Status: {fairnessAuditResults.status || 'PASS'}</h4>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {fairnessAuditResults.note || 'Metrics evaluated against population-level benchmark datasets.'}
+                  </p>
+                </div>
+                <div className={`px-4 py-2 rounded-lg font-bold text-xs ${
+                  fairnessAuditResults.status === 'FLAG' ? 'bg-red-500/10 text-red-500' : 'bg-emerald-500/10 text-emerald-500'
+                }`}>
+                  {fairnessAuditResults.status === 'FLAG' ? 'NEEDS ATTENTION' : 'FAIRNESS THRESHOLDS MET'}
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Demographic Parity Difference (DPD) Chart */}
+                <div className="p-4 bg-card border border-border/40 rounded-xl shadow-sm flex flex-col items-center">
+                  <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-4">Demographic Parity Difference (DPD)</h4>
+                  <p className="text-[10px] text-muted-foreground text-center mb-2 px-4">
+                    Measures the difference in selection rates across demographic groups. Lower is better (Threshold ≤ 0.10).
+                  </p>
+                  <Plot
+                    data={[
+                      {
+                        x: ['DPD'],
+                        y: [fairnessAuditResults.DPD],
+                        type: 'bar',
+                        marker: {
+                          color: fairnessAuditResults.DPD <= 0.10 ? '#10b981' : '#ef4444' // emerald or red
+                        },
+                        width: 0.4
+                      }
+                    ]}
+                    layout={{
+                      width: 300,
+                      height: 250,
+                      margin: { t: 20, b: 30, l: 40, r: 20 },
+                      paper_bgcolor: 'transparent',
+                      plot_bgcolor: 'transparent',
+                      font: { color: '#888' },
+                      yaxis: { range: [0, 1], showgrid: true, gridcolor: 'rgba(128,128,128,0.2)' },
+                      xaxis: { showgrid: false },
+                      shapes: [
+                        {
+                          type: 'line',
+                          x0: -0.5,
+                          x1: 0.5,
+                          y0: 0.10,
+                          y1: 0.10,
+                          line: { color: 'rgba(239, 68, 68, 0.5)', width: 2, dash: 'dash' }
+                        }
+                      ],
+                      annotations: [
+                        {
+                          x: 0.4,
+                          y: 0.10,
+                          xref: 'x',
+                          yref: 'y',
+                          text: 'Max: 0.10',
+                          showarrow: false,
+                          font: { color: '#ef4444', size: 10 },
+                          xanchor: 'left',
+                          yanchor: 'bottom'
+                        }
+                      ]
+                    }}
+                    config={{ displayModeBar: false }}
+                  />
+                  <div className="mt-4 text-center">
+                    <span className="text-2xl font-bold font-mono">{fairnessAuditResults.DPD.toFixed(3)}</span>
+                  </div>
+                </div>
+
+                {/* Disparate Impact Ratio (DIR) Chart */}
+                <div className="p-4 bg-card border border-border/40 rounded-xl shadow-sm flex flex-col items-center">
+                  <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-4">Disparate Impact Ratio (DIR)</h4>
+                  <p className="text-[10px] text-muted-foreground text-center mb-2 px-4">
+                    Ratio of favorable outcomes for unprivileged vs privileged groups. Higher is better (Threshold ≥ 0.80).
+                  </p>
+                  <Plot
+                    data={[
+                      {
+                        type: 'indicator',
+                        mode: 'gauge+number',
+                        value: fairnessAuditResults.DIR,
+                        gauge: {
+                          axis: { range: [0, 1.2], tickwidth: 1, tickcolor: 'rgba(128,128,128,0.5)' },
+                          bar: { color: fairnessAuditResults.DIR >= 0.80 ? '#10b981' : '#ef4444' },
+                          bgcolor: 'rgba(128,128,128,0.1)',
+                          borderwidth: 0,
+                          bordercolor: 'transparent',
+                          steps: [
+                            { range: [0, 0.8], color: 'rgba(239, 68, 68, 0.1)' },
+                            { range: [0.8, 1.2], color: 'rgba(16, 185, 129, 0.1)' }
+                          ],
+                          threshold: {
+                            line: { color: '#ef4444', width: 2 },
+                            thickness: 0.75,
+                            value: 0.80
+                          }
+                        }
+                      }
+                    ]}
+                    layout={{
+                      width: 300,
+                      height: 250,
+                      margin: { t: 40, b: 20, l: 30, r: 30 },
+                      paper_bgcolor: 'transparent',
+                      font: { color: '#888' }
+                    }}
+                    config={{ displayModeBar: false }}
+                  />
+                  <div className="mt-4 text-center">
+                    <span className="text-2xl font-bold font-mono">{fairnessAuditResults.DIR.toFixed(3)}</span>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
