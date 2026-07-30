@@ -18,6 +18,7 @@ import {
   RadarChart, PolarGrid, PolarAngleAxis, Radar
 } from 'recharts'
 import { motion } from 'motion/react'
+import { calculateJobMatchScore } from '../data/mockData'
 
 const stageColors: Record<string, string> = {
   interview: 'text-primary bg-primary/5 border-primary/10',
@@ -149,7 +150,7 @@ function buildCareerPaths(user: any) {
 
 
 export function ApplicantDashboard() {
-  const { user, jobs, applicantApplications, applicationChartData, matchedJobs, loadingAiMatches: matchingLoading } = useApp()
+  const { user, jobs, applicantApplications, applicationChartData, matchedJobs, loadingAiMatches: matchingLoading, aiMatchScores } = useApp()
   const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
   const tabParam = searchParams.get('tab')
@@ -210,7 +211,7 @@ export function ApplicantDashboard() {
         hasFirestoreJob: !!fullJob,
       }
     }).slice(0, 5)
-    : jobs.slice(0, 5).map(j => ({ ...j, match: j.match || 85, recommended: true, why_match: [], hasFirestoreJob: true }))
+    : jobs.slice(0, 5).map(j => ({ ...j, match: calculateJobMatchScore(user?.skills || [], j.skills, j.id, j.title, j.company, aiMatchScores) || 85, recommended: true, why_match: [], hasFirestoreJob: true }))
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]

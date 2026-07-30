@@ -7,6 +7,7 @@ import {
   ChevronRight, Zap, ArrowUpRight, RefreshCw, Star,
   AlertCircle, BookOpen, MapPin, DollarSign, X, Briefcase, ExternalLink,
 } from 'lucide-react'
+import { calculateJobMatchScore } from '../data/mockData'
 import { motion } from 'motion/react'
 import {
   RadarChart, PolarGrid, PolarAngleAxis, Radar, ResponsiveContainer,
@@ -139,7 +140,7 @@ function buildUserResumeText(u: any) {
 
 export function AIRecommendations() {
   const navigate = useNavigate()
-  const { user, jobs } = useApp()
+  const { user, jobs, aiMatchScores } = useApp()
 
   const aiResponses = buildAIResponses(user)
   const radarData = buildRadarData(user)
@@ -265,7 +266,7 @@ export function AIRecommendations() {
           hasFirestoreJob: !!fullJob,
         }
       }).slice(0, 5)
-    : jobs.slice(0, 5).map(j => ({ ...j, match: j.match || 85, recommended: true, why_match: [], hasFirestoreJob: true })).sort((a, b) => b.match - a.match)
+    : jobs.slice(0, 5).map(j => ({ ...j, match: calculateJobMatchScore(user?.skills || [], j.skills, j.id, j.title, j.company, aiMatchScores) || 85, recommended: true, why_match: [], hasFirestoreJob: true })).sort((a, b) => b.match - a.match)
 
   return (
     <>

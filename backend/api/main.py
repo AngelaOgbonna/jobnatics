@@ -442,7 +442,9 @@ def individual_match(payload: ResumePayload):
 
         top = results.sort_values(
             by=['fair_outcome', 'score'], ascending=[False, False]
-        ).head(10)
+        )
+        if not payload.live_jobs:
+            top = top.head(10)
 
         clean_resume = preprocess_text(payload.resume_text)
 
