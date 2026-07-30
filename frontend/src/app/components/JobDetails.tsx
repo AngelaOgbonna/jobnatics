@@ -26,6 +26,7 @@ export function JobDetails() {
   const [saved, setSaved] = useState(false)
   const [applied, setApplied] = useState(false)
   const [applyLoading, setApplyLoading] = useState(false)
+  const [coverLetter, setCoverLetter] = useState('')
 
   const rawJob = jobs.find(j => j.id === id)
   const job = rawJob ? {
@@ -103,7 +104,8 @@ export function JobDetails() {
       date: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
       match: job.match,
       stage: 'Applied',
-      status: 'applied'
+      status: 'applied',
+      coverLetter: coverLetter.trim()
     }
     try {
       await addApplicantApplication(appDoc)
@@ -337,30 +339,37 @@ export function JobDetails() {
                   </div>
                 ) : (
                   <div className="space-y-3">
+                    {user && (
+                      <div className="space-y-2">
+                        <label className="text-xs font-semibold text-foreground">Cover Letter</label>
+                        <textarea
+                          value={coverLetter}
+                          onChange={(e) => setCoverLetter(e.target.value)}
+                          placeholder="Why are you a great fit for this role?"
+                          className="w-full h-24 rounded-xl bg-muted/30 border border-border/50 text-sm p-3 focus:outline-none focus:border-primary resize-none placeholder:text-muted-foreground/60 transition-colors"
+                        />
+                      </div>
+                    )}
                     <button
                       onClick={user ? handleApply : () => navigate('/auth')}
-                      disabled={applyLoading}
+                      disabled={applyLoading || (user !== null && !coverLetter.trim())}
                       className="w-full py-3.5 rounded-xl font-semibold text-sm transition-all shadow-lg shadow-primary/20 flex items-center justify-center gap-2 bg-primary text-white hover:bg-primary/90 disabled:opacity-70 group"
                     >
                       {applyLoading ? (
                         <>
                           <div className="w-4 h-4 rounded-full border-2 border-white/30 border-t-white animate-spin" />
-                          <span>Generating AI Application...</span>
+                          <span>Submitting Application...</span>
                         </>
                       ) : (
                         <>
-                          {user ? <><Zap size={16} strokeWidth={1.75} fill="currentColor" fillOpacity={0.2} className="transition-transform duration-300 group-hover:scale-110 group-hover:rotate-12" /> Apply with AI</> : 'Sign In to Apply'}
+                          {user ? 'Apply' : 'Sign In to Apply'}
                         </>
                       )}
                     </button>
-                    {job.match === 0 ? (
+                    {job.match === 0 && (
                       <div className="text-center text-xs text-amber-500/90 mt-2 px-2 flex flex-col items-center gap-1">
                         <AlertCircle size={12} />
                         Due to a low match score, you might not hear back from recruiters for this role.
-                      </div>
-                    ) : (
-                      <div className="text-center text-xs text-muted-foreground">
-                        AI will craft a personalized cover letter and optimize your application
                       </div>
                     )}
                   </div>

@@ -431,7 +431,8 @@ export function RecruiterDashboard() {
                           const email = prof?.email || ''
 
                           return (
-                            <div key={app.id} className="p-4 rounded-lg bg-muted/10 border border-border/20 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                            <div key={app.id} className="p-4 rounded-lg bg-muted/10 border border-border/20 flex flex-col gap-4">
+                              <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
                               <div className="flex items-start gap-3">
                                 <img src={avatar} alt={name} className="w-10 h-10 rounded-lg object-cover ring-2 ring-primary/10 flex-shrink-0" />
                                 <div>
@@ -503,6 +504,13 @@ export function RecruiterDashboard() {
                                   </button>
                                 </div>
                               </div>
+                            </div>
+                              {app.coverLetter && (
+                                <div className="mt-2 p-3 rounded-md bg-muted/20 border border-border/30">
+                                  <div className="text-[10px] uppercase font-bold text-muted-foreground mb-1">Cover Letter</div>
+                                  <p className="text-xs text-foreground whitespace-pre-wrap leading-relaxed">{app.coverLetter}</p>
+                                </div>
+                              )}
                             </div>
                           )
                         })}
