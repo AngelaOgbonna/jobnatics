@@ -28,8 +28,8 @@ const features = [
     icon: Sparkles,
     title: 'Resume Intelligence',
     description: 'Upload your resume and our AI extracts skills, quantifies achievements, identifies gaps, and generates tailored improvement suggestions.',
-    color: 'from-purple-500 to-pink-500',
-    glow: 'shadow-purple-500/20',
+    color: 'from-sky-500 to-blue-500',
+    glow: 'shadow-sky-500/20',
   },
   {
     icon: MessageSquare,
@@ -140,8 +140,8 @@ export function LandingPage() {
       <nav className={`fixed top-0 inset-x-0 z-50 transition-all duration-300 ${scrolled ? 'bg-background/90 backdrop-blur-xl border-b border-border shadow-lg' : ''}`}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-2 group cursor-pointer">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary to-accent flex items-center justify-center shadow-lg shadow-primary/30 transition-transform duration-300 group-hover:scale-105">
-              <Zap size={16} strokeWidth={1.75} fill="currentColor" fillOpacity={0.2} className="text-white transition-transform duration-300 group-hover:rotate-12" />
+            <div className="w-8 h-8 rounded-lg overflow-hidden transition-transform duration-300 group-hover:scale-105">
+              <img src="/favicon.png" alt="Jobnatics AI" className="w-full h-full object-cover" />
             </div>
             <span className="font-bold text-foreground" style={{ fontFamily: 'Outfit, sans-serif' }}>
               Jobnatics <span className="text-primary">AI</span>
@@ -189,7 +189,7 @@ export function LandingPage() {
             ))}
             <div className="pt-2 flex flex-col gap-2">
               <button onClick={() => navigate('/auth')} className="w-full py-2 text-sm border border-border rounded-lg">Sign In</button>
-              <button onClick={() => handleGetStarted()} className="w-full py-2 text-sm bg-primary text-white rounded-lg">Get Started Free</button>
+              <button onClick={() => handleGetStarted()} className="w-full btn-primary">Get Started Free</button>
             </div>
           </div>
         )} */}
@@ -199,12 +199,12 @@ export function LandingPage() {
       <section className="relative min-h-screen flex items-center justify-center pt-16 overflow-hidden">
         {/* Animated background orbs */}
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
-          <div className="absolute top-1/4 left-1/4 w-96 h-96 rounded-full bg-primary/20 blur-3xl animate-pulse" style={{ animationDuration: '4s' }} />
-          <div className="absolute top-1/3 right-1/4 w-80 h-80 rounded-full bg-accent/15 blur-3xl animate-pulse" style={{ animationDuration: '6s', animationDelay: '1s' }} />
-          <div className="absolute bottom-1/4 left-1/3 w-72 h-72 rounded-full bg-purple-500/15 blur-3xl animate-pulse" style={{ animationDuration: '5s', animationDelay: '2s' }} />
+          <div className="absolute top-1/4 left-1/4 w-96 h-96 rounded-full bg-white/5 blur-3xl animate-pulse" style={{ animationDuration: '4s' }} />
+          <div className="absolute top-1/3 right-1/4 w-80 h-80 rounded-full bg-white/[0.03] blur-3xl animate-pulse" style={{ animationDuration: '6s', animationDelay: '1s' }} />
+          <div className="absolute bottom-1/4 left-1/3 w-72 h-72 rounded-full bg-zinc-500/10 blur-3xl animate-pulse" style={{ animationDuration: '5s', animationDelay: '2s' }} />
           {/* Grid lines */}
-          <div className="absolute inset-0 opacity-5" style={{
-            backgroundImage: 'linear-gradient(rgba(99,102,241,0.5) 1px, transparent 1px), linear-gradient(90deg, rgba(99,102,241,0.5) 1px, transparent 1px)',
+          <div className="absolute inset-0 opacity-[0.03]" style={{
+            backgroundImage: 'linear-gradient(rgba(129,140,248,0.6) 1px, transparent 1px), linear-gradient(90deg, rgba(129,140,248,0.6) 1px, transparent 1px)',
             backgroundSize: '60px 60px'
           }} />
         </div>
@@ -230,7 +230,7 @@ export function LandingPage() {
             style={{ fontFamily: 'Outfit, sans-serif', fontSize: 'clamp(2.5rem, 7vw, 5rem)', fontWeight: 800, lineHeight: 1.1 }}
           >
             Hire Smarter.{' '}
-            <span className="bg-gradient-to-r from-primary via-purple-500 to-accent bg-clip-text text-transparent">
+            <span className="bg-gradient-to-r from-zinc-300 via-white to-zinc-400 bg-clip-text text-transparent dark:from-zinc-200 dark:via-white dark:to-zinc-400">
               Get Hired Faster.
             </span>
           </motion.h1>
@@ -254,7 +254,7 @@ export function LandingPage() {
           >
             <button
               onClick={() => handleGetStarted()}
-              className="flex items-center gap-2 px-8 py-4 rounded-xl bg-gradient-to-r from-primary to-violet-600 text-white font-semibold shadow-2xl shadow-primary/30 hover:shadow-primary/50 hover:scale-105 transition-all duration-200 group"
+              className="flex items-center gap-2 px-8 py-4 rounded-xl bg-foreground text-background font-semibold shadow-2xl hover:opacity-90 hover:scale-105 transition-all duration-200 group"
             >
               <Rocket size={18} strokeWidth={1.75} fill="currentColor" fillOpacity={0.2} className="transition-transform duration-300 group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
               Find My Perfect Job
@@ -310,7 +310,7 @@ export function LandingPage() {
                     { label: 'Match Rate', value: '94%', color: 'text-emerald-400' },
                     { label: 'Applications', value: '12', color: 'text-primary' },
                     { label: 'Interviews', value: '3', color: 'text-accent' },
-                    { label: 'AI Score', value: '87', color: 'text-purple-400' },
+                    { label: 'AI Score', value: '87', color: 'text-sky-400' },
                   ].map(card => (
                     <div key={card.label} className="bg-background/60 rounded-lg p-3 border border-border">
                       <div className={`text-xl font-bold ${card.color}`} style={{ fontFamily: 'Outfit, sans-serif' }}>{card.value}</div>
@@ -398,7 +398,7 @@ export function LandingPage() {
                 key={role}
                 onClick={() => setActiveRole(role)}
                 className={`px-6 py-2.5 rounded-xl font-medium text-sm transition-all duration-200 ${activeRole === role
-                  ? 'bg-primary text-white shadow-lg shadow-primary/30'
+                  ? 'btn-primary'
                   : 'bg-card border border-border text-muted-foreground hover:text-foreground'
                   }`}
               >
@@ -434,7 +434,7 @@ export function LandingPage() {
       <section className="py-24 px-4">
         <div className="max-w-6xl mx-auto">
           <div className="text-center mb-16">
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-purple-500/10 border border-purple-500/20 text-purple-400 text-xs font-medium mb-4 hover:bg-purple-500/15 transition-colors group cursor-default">
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-400 text-xs font-medium mb-4 hover:bg-amber-500/15 transition-colors group cursor-default">
               <Award size={12} strokeWidth={1.75} fill="currentColor" fillOpacity={0.2} className="group-hover:scale-110 transition-transform duration-300" /> Success Stories
             </div>
             <h2 style={{ fontFamily: 'Outfit, sans-serif', fontSize: 'clamp(1.75rem, 4vw, 3rem)', fontWeight: 700 }} className="mb-4">
@@ -480,8 +480,8 @@ export function LandingPage() {
         <div className="max-w-7xl mx-auto">
           <div className="flex flex-col md:flex-row items-center justify-between gap-4">
             <div className="flex items-center gap-2 group cursor-pointer">
-              <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-primary to-accent flex items-center justify-center transition-all duration-300 group-hover:shadow-md group-hover:shadow-primary/20">
-                <Zap size={14} strokeWidth={1.75} fill="currentColor" fillOpacity={0.2} className="text-white transition-transform duration-300 group-hover:scale-110 group-hover:rotate-12" />
+              <div className="w-7 h-7 rounded-lg overflow-hidden transition-all duration-300">
+                <img src="/favicon.png" alt="Jobnatics AI" className="w-full h-full object-cover" />
               </div>
               <span className="font-semibold" style={{ fontFamily: 'Outfit, sans-serif' }}>Jobnatics AI</span>
             </div>

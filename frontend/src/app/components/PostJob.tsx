@@ -257,7 +257,7 @@ export function PostJob() {
             </button>
             <button
               onClick={() => navigate('/app/recruiter')}
-              className="px-5 py-2.5 rounded-xl bg-primary text-white text-sm font-medium hover:bg-primary/90 shadow-md shadow-primary/20 transition-all"
+              className="btn-primary"
             >
               Back to Dashboard
             </button>
@@ -299,8 +299,7 @@ export function PostJob() {
                 onClick={() => s < step && setStep(s)}
                 className={`w-8 h-8 rounded-full text-xs font-semibold transition-all flex items-center justify-center flex-shrink-0 ${
                   s < step ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 cursor-pointer hover:scale-105' :
-                  s === step ? 'bg-primary text-white shadow-md shadow-primary/30' :
-                  'bg-muted text-muted-foreground border border-border'
+                  s === step ? 'btn-primary' : 'bg-muted text-muted-foreground border border-border'
                 }`}
               >
                 {s < step ? <CheckCircle2 size={14} strokeWidth={2} /> : s}
@@ -457,7 +456,7 @@ export function PostJob() {
                 <button
                   onClick={() => step1Valid && setStep(2)}
                   disabled={!step1Valid}
-                  className="px-6 py-2.5 rounded-xl bg-primary text-white text-sm font-semibold hover:bg-primary/90 disabled:opacity-40 disabled:cursor-not-allowed shadow-md shadow-primary/20 transition-all"
+                  className="btn-primary"
                 >
                   Continue →
                 </button>
@@ -499,7 +498,7 @@ export function PostJob() {
                 <button
                   onClick={() => step2Valid && setStep(3)}
                   disabled={!step2Valid}
-                  className="px-6 py-2.5 rounded-xl bg-primary text-white text-sm font-semibold hover:bg-primary/90 disabled:opacity-40 disabled:cursor-not-allowed shadow-md shadow-primary/20 transition-all"
+                  className="btn-primary"
                 >
                   Preview →
                 </button>
@@ -573,7 +572,7 @@ export function PostJob() {
                 <button
                   onClick={handleSubmit}
                   disabled={submitting || !canSubmit}
-                  className="flex items-center gap-2 px-7 py-2.5 rounded-xl bg-primary text-white text-sm font-semibold hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-primary/25 transition-all"
+                  className="btn-primary"
                 >
                   {submitting ? (
                     <>

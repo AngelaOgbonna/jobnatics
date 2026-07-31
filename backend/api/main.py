@@ -11,7 +11,7 @@ import cloudinary
 import cloudinary.uploader
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from typing import List
+from typing import List, Optional
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 from sklearn.base import BaseEstimator
@@ -24,6 +24,7 @@ import nltk
 from nltk.corpus import stopwords
 from nltk.tokenize import word_tokenize
 from nltk.stem import PorterStemmer
+from api.config import FairnessConfigModel, get_fairness_config, update_fairness_config
 
 # Configure NLTK to download to a writable directory on Vercel
 import os
@@ -138,6 +139,11 @@ optimizer_a = None
 optimizer_b = None
 optimizer_c = None
 
+# Pre-fitted job vectoriser + matrix (built once at startup for explain_match)
+job_vectoriser = None
+job_matrix = None
+job_feature_names = None
+
 
 # ── Text preprocessing ─────────────────────────────────────────────────────────
 
@@ -160,6 +166,20 @@ def preprocess_text(text: str) -> str:
     ]
     return " ".join(cleaned)
 
+def get_stem_mapping(text: str) -> dict:
+    if not isinstance(text, str):
+        return {}
+    text = fix_glued_words(text)
+    text = text.lower()
+    text = re.sub(r'[^a-z\s]', ' ', text)
+    tokens = word_tokenize(text)
+    mapping = {}
+    for w in tokens:
+        if w not in stop_words and len(w) > 2:
+            st = stemmer.stem(w)
+            if st not in mapping or len(w) < len(mapping[st]):
+                mapping[st] = w
+    return mapping
 
 # ── Startup ────────────────────────────────────────────────────────────────────
 
@@ -167,6 +187,7 @@ def preprocess_text(text: str) -> str:
 def load_all():
     global df_jobs_pool, df_resumes_pool, optimizer_a, optimizer_b, optimizer_c
     global resumes_vectorizer, resumes_tfidf_matrix
+    global job_vectoriser, job_matrix, job_feature_names
 
     data_dir = os.path.join(os.path.dirname(__file__), "..", "data")
 
@@ -200,6 +221,17 @@ def load_all():
         df_jobs_pool['Job_Description_clean'] = (
             df_jobs_pool['Job Description'].apply(preprocess_text)
         )
+
+    # Pre-fit a shared TF-IDF vectoriser over the job corpus once.
+    # Used by explain_match to compute exact per-term cosine contributions.
+    _min_df = 2 if len(df_jobs_pool) >= 10 else 1
+    job_vectoriser = TfidfVectorizer(min_df=_min_df, max_df=0.85, ngram_range=(1, 2))
+    job_matrix = job_vectoriser.fit_transform(
+        df_jobs_pool['Job_Description_clean'].tolist()
+    )
+    job_feature_names = job_vectoriser.get_feature_names_out()
+    print(f"Job vectoriser fitted on {job_matrix.shape[0]} jobs, "
+          f"{len(job_feature_names)} features.")
 
     # Load resumes
     resumes_path = os.path.join(data_dir, "resumes_clean.csv")
@@ -252,20 +284,66 @@ def load_all():
 # ── Helper: rank jobs ──────────────────────────────────────────────────────────
 
 def rank_jobs(clean_resume: str, job_df: pd.DataFrame) -> pd.DataFrame:
-    corpus = [clean_resume] + job_df['Job_Description_clean'].tolist()
-    vectoriser = TfidfVectorizer(min_df=1, max_df=0.95, ngram_range=(1, 2))
-    matrix = vectoriser.fit_transform(corpus)
-    scores = cosine_similarity(matrix[0:1], matrix[1:]).flatten()
+    if job_vectoriser is not None:
+        resume_vec = job_vectoriser.transform([clean_resume])
+        job_vecs = job_vectoriser.transform(job_df['Job_Description_clean'].tolist())
+        scores = cosine_similarity(resume_vec, job_vecs).flatten()
+    else:
+        corpus = [clean_resume] + job_df['Job_Description_clean'].tolist()
+        vectoriser = TfidfVectorizer(min_df=1, max_df=0.95, ngram_range=(1, 2))
+        matrix = vectoriser.fit_transform(corpus)
+        scores = cosine_similarity(matrix[0:1], matrix[1:]).flatten()
+        
     result = job_df.copy()
     result['score'] = scores
     return result
 
 
+# ── Helper: explain match ───────────────────────────────────────────────────────
+
+def explain_match(clean_text_a: str, clean_text_b: str, top_n: int = 5, stem_mapping: dict = None) -> list:
+    """
+    Returns the top contributing TF-IDF terms between two pre-processed text
+    strings (resume ↔ job, or job ↔ resume for recruiter view).  Uses the
+    element-wise product of the two L2-normalised TF-IDF vectors so each
+    term's contribution to the cosine score is exact (not approximate).
+    Falls back gracefully to an empty list on any error.
+    """
+    try:
+        if job_vectoriser is None:
+            return []
+        vec_a = job_vectoriser.transform([clean_text_a]).toarray().flatten()
+        vec_b = job_vectoriser.transform([clean_text_b]).toarray().flatten()
+        contributions = vec_a * vec_b
+        if contributions.sum() == 0:
+            return []
+        top_idx = contributions.argsort()[-top_n:][::-1]
+       
+        
+        return [
+            {
+                "term": stem_mapping.get(str(job_feature_names[i]), str(job_feature_names[i])) if stem_mapping else str(job_feature_names[i]),
+                "contribution": round(float(contributions[i]), 4),
+            }
+            for i in top_idx if contributions[i] > 0
+        ]
+    except Exception:
+        return []
+
+
 # ── Request schemas ────────────────────────────────────────────────────────────
+
+class LiveJob(BaseModel):
+    id: str
+    title: str
+    company: str
+    description: str
+
 
 class ResumePayload(BaseModel):
     resume_text: str
     demographic_group: int = 0
+    live_jobs: Optional[List[LiveJob]] = None
 
 
 class BatchCandidate(BaseModel):
@@ -278,8 +356,14 @@ class BatchPayload(BaseModel):
     candidates: List[BatchCandidate]
 
 
+class ApplicantMatchItem(BaseModel):
+    applicant_id: str
+    resume_text: str
+    demographic_group: int = 0
+
 class JobPayload(BaseModel):
     job_description: str
+    applicants: Optional[List[ApplicantMatchItem]] = None
 
 
 # ── Endpoint 1: Health check ───────────────────────────────────────────────────
@@ -338,7 +422,19 @@ def individual_match(payload: ResumePayload):
 
     try:
         clean_resume = preprocess_text(payload.resume_text)
-        results = rank_jobs(clean_resume, df_jobs_pool)
+        
+        if payload.live_jobs and len(payload.live_jobs) > 0:
+            df_eval = pd.DataFrame([{
+                'Job Title': j.title,
+                'Company': j.company,
+                'Job Description': j.description,
+                'id': j.id
+            } for j in payload.live_jobs])
+            df_eval['Job_Description_clean'] = df_eval['Job Description'].apply(preprocess_text)
+        else:
+            df_eval = df_jobs_pool
+            
+        results = rank_jobs(clean_resume, df_eval)
         results['base_outcome'] = (
             results['score'] >= BASE_THRESHOLD
         ).astype(int)
@@ -367,7 +463,11 @@ def individual_match(payload: ResumePayload):
 
         top = results.sort_values(
             by=['fair_outcome', 'score'], ascending=[False, False]
-        ).head(10)
+        )
+        if not payload.live_jobs:
+            top = top.head(10)
+
+        clean_resume = preprocess_text(payload.resume_text)
 
         return {
             "candidate_demographic_group": payload.demographic_group,
@@ -379,7 +479,13 @@ def individual_match(payload: ResumePayload):
                     "job_title": str(row['Job Title']),
                     "company": str(row['Company']),
                     "similarity_score": round(float(row['score']), 4),
-                    "recommended": bool(row['fair_outcome'])
+                    "recommended": bool(row['fair_outcome']),
+                    "id": str(row['id']) if 'id' in row else None,
+                    "why_match": explain_match(
+                        clean_resume,
+                        str(row.get('Job_Description_clean', '')),
+                        stem_mapping=get_stem_mapping(payload.resume_text + " " + str(row.get('Job Description', '')))
+                    ),
                 }
                 for i, (_, row) in enumerate(top.iterrows())
             ],
@@ -545,6 +651,15 @@ def batch_match(payload: BatchPayload):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+# ── Admin Endpoints ─────────────────────────────────────────────────────────────
+@app.get("/api/config/fairness")
+def get_fairness_cfg():
+    return get_fairness_config()
+
+@app.put("/api/config/fairness")
+def update_fairness_cfg(config: FairnessConfigModel):
+    return update_fairness_config(config)
+
 # ── Endpoint 5: Match job description against candidates ──────────────────────
 
 @app.post("/api/match-job")
@@ -567,18 +682,36 @@ def match_job(payload: JobPayload):
         # Compute TF-IDF vector for the job description
         job_tfidf = resumes_vectorizer.transform([clean_job_desc])
         
-        # Calculate cosine similarity with all resumes in the pool
-        scores = cosine_similarity(job_tfidf, resumes_tfidf_matrix).flatten()
-        # Clean potential NaN values from cosine similarity division by zero
-        scores = np.nan_to_num(scores, nan=0.0)
-        
-        # Build results DataFrame
-        df_results = df_resumes_pool.copy()
-        df_results['score'] = scores
-        df_results['base_outcome'] = (df_results['score'] >= BASE_THRESHOLD).astype(int)
+        if payload.applicants and len(payload.applicants) > 0:
+            df_results = pd.DataFrame([
+                {
+                    "id": a.applicant_id,
+                    "resume": a.resume_text,
+                    "demographic_group": a.demographic_group
+                } for a in payload.applicants
+            ])
+            clean_resumes = [preprocess_text(r) for r in df_results['resume']]
+            # Fill empty resumes with empty strings to avoid vectorizer errors
+            clean_resumes = [r if r else "" for r in clean_resumes]
+            app_tfidf = resumes_vectorizer.transform(clean_resumes)
+            scores = cosine_similarity(job_tfidf, app_tfidf).flatten()
+            scores = np.nan_to_num(scores, nan=0.0)
+            df_results['score'] = scores
+            df_results['base_outcome'] = (df_results['score'] >= BASE_THRESHOLD).astype(int)
+        else:
+            # Calculate cosine similarity with all resumes in the pool
+            scores = cosine_similarity(job_tfidf, resumes_tfidf_matrix).flatten()
+            # Clean potential NaN values from cosine similarity division by zero
+            scores = np.nan_to_num(scores, nan=0.0)
+            
+            # Build results DataFrame
+            df_results = df_resumes_pool.copy()
+            df_results['score'] = scores
+            df_results['base_outcome'] = (df_results['score'] >= BASE_THRESHOLD).astype(int)
 
-        # Evaluate fairness on the top 100 highest scoring candidates to see cohort-level parity
-        df_top_cohort = df_results.sort_values(by='score', ascending=False).head(100).copy()
+        config = get_fairness_config()
+        # Evaluate fairness on the top N highest scoring candidates to see cohort-level parity
+        df_top_cohort = df_results.sort_values(by='score', ascending=False).head(config.top_n_cohort).copy()
 
         # Compute DPD and DIR before correction on the top cohort
         dpd_before = float(demographic_parity_difference(
@@ -597,7 +730,7 @@ def match_job(payload: JobPayload):
         if np.isnan(dir_before):
             dir_before = 1.0
 
-        violation = dpd_before > 0.10 or dir_before < 0.80
+        violation = dpd_before > config.DPD_threshold or dir_before < config.DIR_threshold
         correction_applied = False
         optimizer_used = "none"
 
@@ -649,10 +782,10 @@ def match_job(payload: JobPayload):
         if np.isnan(dir_after):
             dir_after = 1.0
 
-        # Sort the top cohort to return the top 10 recommended candidates
+        # Sort the top cohort to return the top N recommended candidates
         top_candidates = df_top_cohort.sort_values(
             by=['fair_outcome', 'score'], ascending=[False, False]
-        ).head(10)
+        ).head(config.top_n_recommended)
 
         return {
             "cohort_size": len(df_top_cohort),
@@ -662,25 +795,25 @@ def match_job(payload: JobPayload):
                 "before_correction": {
                     "DPD": round(dpd_before, 4),
                     "DIR": round(dir_before, 4),
-                    "DPD_status": "PASS" if dpd_before <= 0.10 else "FLAG",
-                    "DIR_status": "PASS" if dir_before >= 0.80 else "FLAG"
+                    "DPD_status": "PASS" if dpd_before <= config.DPD_threshold else "FLAG",
+                    "DIR_status": "PASS" if dir_before >= config.DIR_threshold else "FLAG"
                 },
                 "after_correction": {
                     "DPD": round(dpd_after, 4),
                     "DIR": round(dir_after, 4),
-                    "DPD_status": "PASS" if dpd_after <= 0.10 else "FLAG",
-                    "DIR_status": "PASS" if dir_after >= 0.80 else "FLAG"
+                    "DPD_status": "PASS" if dpd_after <= config.DPD_threshold else "FLAG",
+                    "DIR_status": "PASS" if dir_after >= config.DIR_threshold else "FLAG"
                 },
                 "thresholds": {
-                    "DPD_threshold": 0.10,
-                    "DIR_threshold": 0.80
+                    "DPD_threshold": config.DPD_threshold,
+                    "DIR_threshold": config.DIR_threshold
                 }
             },
             "candidates": [
                 {
                     "rank": i + 1,
-                    "category": str(row['Category']) if pd.notna(row['Category']) else "",
-                    "resume_snippet": (str(row['Resume'])[:200].replace("\n", " ").strip() + "...") if pd.notna(row['Resume']) else "",
+                    "category": str(row.get('Category', '')) if pd.notna(row.get('Category')) else "",
+                    "resume_snippet": (str(row.get('Resume', row.get('resume', '')))[:200].replace("\n", " ").strip() + "...") if pd.notna(row.get('Resume', row.get('resume'))) else "",
                     "demographic_group": int(row['demographic_group']),
                     "similarity_score": round(float(row['score']), 4),
                     "shortlisted_base": bool(row['base_outcome']),
@@ -697,10 +830,7 @@ def match_job(payload: JobPayload):
 
 # ── Endpoint 6: Match specific applicants against a job description ────────────
 
-class ApplicantMatchItem(BaseModel):
-    applicant_id: str
-    resume_text: str
-    demographic_group: int = 0
+
 
 class ApplicantMatchPayload(BaseModel):
     job_description: str
@@ -739,10 +869,18 @@ def match_applicants(payload: ApplicantMatchPayload):
             match_percentage = round(score * 100, 1)
             base_outcome = bool(score >= BASE_THRESHOLD)
             
+            clean_job = preprocess_text(payload.job_description)
+            why = explain_match(
+                clean_job,
+                clean_resume,
+                stem_mapping=get_stem_mapping(payload.job_description + " " + app_item.resume_text)
+            )
+
             matches.append({
                 "applicant_id": app_item.applicant_id,
-                "score": match_percentage,
-                "base_outcome": base_outcome
+                "score": round(score, 4),
+                "base_outcome": base_outcome,
+                "why_match": why,
             })
 
         return {

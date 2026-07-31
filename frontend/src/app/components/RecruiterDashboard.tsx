@@ -12,6 +12,7 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, LineChart, Line, AreaChart, Area, Legend
 } from 'recharts'
+import Plot from 'react-plotly.js'
 import { motion } from 'motion/react'
 import { doc, setDoc } from 'firebase/firestore'
 import { db, BACKEND_URL } from '../firebase'
@@ -73,6 +74,15 @@ export function RecruiterDashboard() {
 
   const [selectedJobId, setSelectedJobId] = useState<string>('')
   const [showCvModal, setShowCvModal] = useState(false)
+  const [showFilters, setShowFilters] = useState(false)
+
+  const [manageJobTab, setManageJobTab] = useState<'applicants' | 'ai_matcher'>('applicants')
+
+  // Fairness Audit state
+  const [showFairnessModal, setShowFairnessModal] = useState(false)
+  const [fairnessAuditResults, setFairnessAuditResults] = useState<any>(null)
+  const [auditLoading, setAuditLoading] = useState(false)
+  const [auditError, setAuditError] = useState<string | null>(null)
   const [viewingCvUrl, setViewingCvUrl] = useState('')
   const [viewingCvName, setViewingCvName] = useState('')
   const [customJobDescription, setCustomJobDescription] = useState<string>('')
@@ -81,7 +91,7 @@ export function RecruiterDashboard() {
   const [matchingError, setMatchingError] = useState<string | null>(null)
 
   const [selectedManageJob, setSelectedManageJob] = useState<any | null>(null)
-  const [applicantScores, setApplicantScores] = useState<Record<string, { score: number, base_outcome: boolean }>>({})
+  const [applicantScores, setApplicantScores] = useState<Record<string, { score: number, base_outcome: boolean, why_match?: { term: string; contribution: number }[] }>>({})
 
   // Fetch match scores for job postings overview (Top Match column)
   useEffect(() => {
@@ -120,11 +130,12 @@ export function RecruiterDashboard() {
 
         if (res.ok) {
           const data = await res.json()
-          const scoresMap: Record<string, { score: number, base_outcome: boolean }> = {}
+          const scoresMap: Record<string, { score: number, base_outcome: boolean, why_match?: { term: string; contribution: number }[] }> = {}
           data.matches.forEach((m: any) => {
             scoresMap[m.applicant_id] = {
               score: m.score,
-              base_outcome: m.base_outcome
+              base_outcome: m.base_outcome,
+              why_match: m.why_match || [],
             }
           })
           setApplicantScores(scoresMap)
@@ -170,6 +181,56 @@ export function RecruiterDashboard() {
     }
   }, [selectedJobId, jobs])
 
+  const handleAuditFairness = async () => {
+    if (!customJobDescription.trim()) return
+
+    setAuditLoading(true)
+    setAuditError(null)
+    setFairnessAuditResults(null)
+    setShowFairnessModal(true)
+
+    try {
+      const candidates = allUsers.filter(u => u.role !== 'recruiter' && u.name)
+      const payload = {
+        job_description: customJobDescription,
+        applicants: candidates.map(user => {
+          const bio = user.bio || ''
+          const skills = Array.isArray(user.skills) ? user.skills.join(', ') : (user.skills || '')
+          const experience = Array.isArray(user.experience) ? user.experience.map((e: any) => `${e.title} at ${e.company} ${e.description}`).join(' ') : ''
+          const resume_text = `${bio} ${skills} ${experience}`.trim()
+          
+          // Generate a deterministic pseudo-random demographic group (0 or 1) based on user ID
+          // In a real scenario, this would come from the database (e.g., self-identified info)
+          const demographic_group = user.id ? user.id.charCodeAt(0) % 2 : 0
+          
+          return {
+            applicant_id: user.id,
+            resume_text: resume_text || user.name,
+            demographic_group
+          }
+        })
+      }
+      const res = await fetch(`${BACKEND_URL}/api/match-job`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      })
+      if (!res.ok) {
+        throw new Error(`Server returned status ${res.status}`)
+      }
+      const data = await res.json()
+      let metrics = data.fairness_metrics?.after_correction || data.fairness_metrics || data.system_fairness_metrics
+      if (metrics && !metrics.status) {
+        metrics.status = (metrics.DPD_status === 'FLAG' || metrics.DIR_status === 'FLAG') ? 'FLAG' : 'PASS'
+      }
+      setFairnessAuditResults(metrics)
+    } catch (err: any) {
+      setAuditError(err.message || 'An error occurred during the fairness audit.')
+    } finally {
+      setAuditLoading(false)
+    }
+  }
+
   const handleMatchCandidates = async () => {
     if (!customJobDescription.trim()) return
 
@@ -178,14 +239,29 @@ export function RecruiterDashboard() {
     setMatchingResults(null)
 
     try {
-      const res = await fetch(`${BACKEND_URL}/api/match-job`, {
+      // Filter out recruiters, only keep regular users as candidates
+      const candidates = allUsers.filter(u => u.role !== 'recruiter' && u.name)
+
+      const payload = {
+        job_description: customJobDescription,
+        applicants: candidates.map(user => {
+          const bio = user.bio || ''
+          const skills = Array.isArray(user.skills) ? user.skills.join(', ') : (user.skills || '')
+          const experience = Array.isArray(user.experience) ? user.experience.map((e: any) => `${e.title} at ${e.company} ${e.description}`).join(' ') : ''
+          const resume_text = `${bio} ${skills} ${experience}`.trim()
+          return {
+            applicant_id: user.id,
+            resume_text: resume_text || user.name // fallback to name if totally empty
+          }
+        })
+      }
+
+      const res = await fetch(`${BACKEND_URL}/api/match-applicants`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          job_description: customJobDescription,
-        }),
+        body: JSON.stringify(payload),
       })
 
       if (!res.ok) {
@@ -194,44 +270,40 @@ export function RecruiterDashboard() {
 
       const data = await res.json()
 
-      const professionalNames = [
-        "Sarah Jenkins", "Michael Chang", "Amara Okafor", "David Vance", "Elena Rostova",
-        "Marcus Aurelius", "Priya Patel", "Carlos Mendez", "Yuki Tanaka", "John Doe",
-        "Sophia Dubois", "Liam O'Connor", "Aisha Bello", "Hans Schmidt", "Ji-Won Kim"
-      ]
-      const locations = ["San Francisco, CA", "New York, NY", "London, UK", "Berlin, DE", "Tokyo, JP", "Toronto, ON", "Chicago, IL", "Austin, TX"]
+      // Map back to ranked results
+      const ranked = data.matches
+        .sort((a: any, b: any) => b.score - a.score)
+        .map((match: any, index: number) => {
+          const realUser = candidates.find(u => u.id === match.applicant_id)
+          const fallbackAvatar = `https://i.pravatar.cc/150?img=${index + 10}`
 
-      const ranked = data.candidates.map((cand: any, index: number) => {
-        const name = professionalNames[index % professionalNames.length]
-        const location = locations[index % locations.length]
-        const fallbackAvatar = `https://i.pravatar.cc/150?img=${index + 10}`
-
-        // Find matching real user in Firestore by name (case-insensitive)
-        const realUser = allUsers.find(u => u.name && u.name.toLowerCase().trim() === name.toLowerCase().trim())
-
-        return {
-          userId: realUser?.id || `csv-${cand.rank}`,
-          rank: cand.rank,
-          name: name,
-          avatar: realUser?.avatar || fallbackAvatar,
-          title: cand.category,
-          location: realUser?.location || location,
-          bioSnippet: cand.resume_snippet,
-          similarity_score: cand.similarity_score,
-          shortlisted_base: cand.shortlisted_base,
-          shortlisted_fair: cand.shortlisted_fair,
-          reranked: cand.reranked,
-          demographic_group: cand.demographic_group,
-          resumeUrl: realUser?.resumeUrl || "https://res.cloudinary.com/demo/image/upload/v1234567890/sample.pdf",
-          resumeName: realUser?.resumeName || "resume.pdf"
-        }
-      })
+          return {
+            userId: match.applicant_id,
+            rank: index + 1,
+            name: realUser?.name || 'Unknown',
+            avatar: realUser?.avatar || fallbackAvatar,
+            title: realUser?.title || 'Professional',
+            location: realUser?.location || 'Remote',
+            bioSnippet: (realUser?.bio || '').substring(0, 100) + '...',
+            similarity_score: match.score,
+            shortlisted_base: match.base_outcome,
+            shortlisted_fair: match.base_outcome,
+            reranked: false,
+            demographic_group: 0,
+            resumeUrl: realUser?.resumeUrl || "",
+            resumeName: realUser?.resumeName || "",
+            why_match: match.why_match || [],
+          }
+        })
 
       setMatchingResults({
-        cohort_size: data.cohort_size,
-        fairness_correction_applied: data.fairness_correction_applied,
-        optimizer_used: data.optimizer_used,
-        fairness_metrics: data.fairness_metrics,
+        cohort_size: ranked.length,
+        fairness_correction_applied: false,
+        optimizer_used: null,
+        dpd_before: 0,
+        dpd_after: 0,
+        dir_before: 0,
+        dir_after: 0,
         candidates: ranked,
       })
     } catch (err: any) {
@@ -293,7 +365,7 @@ export function RecruiterDashboard() {
           <div className="flex gap-2">
             <button
               onClick={() => navigate('/post-job')}
-              className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-primary text-white text-xs font-semibold hover:bg-primary/95 transition-all shadow-sm"
+              className="btn-primary"
             >
               <Plus size={13} />
               Post New Job
@@ -359,310 +431,178 @@ export function RecruiterDashboard() {
                   <span className="flex items-center gap-1"><Briefcase size={12} /> {selectedManageJob.type || 'Full-time'} · {selectedManageJob.level || 'Mid-Level'}</span>
                 </div>
               </div>
-              <button
-                onClick={() => {
-                  setSelectedJobId(selectedManageJob.id)
-                  setActiveTab('match')
-                  setSelectedManageJob(null)
-                }}
-                className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-primary/10 text-primary border border-primary/20 hover:bg-primary/20 text-xs font-semibold transition-all"
-              >
-                <Sparkles size={13} />
-                Run AI Matcher Cohort
-              </button>
+              <div className="flex items-center gap-2 bg-muted/30 p-1 rounded-lg">
+                <button
+                  onClick={() => setManageJobTab('applicants')}
+                  className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-all ${manageJobTab === 'applicants' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
+                >
+                  Applicants ({applicantApplications.filter(a => a.jobId === selectedManageJob.id).length})
+                </button>
+                <button
+                  onClick={() => {
+                    setCustomJobDescription(`${selectedManageJob.title}\n\n${selectedManageJob.description}\n\n${(selectedManageJob.requirements || []).join('\n')}`)
+                    setManageJobTab('ai_matcher')
+                  }}
+                  className={`px-3 py-1.5 flex items-center gap-1.5 rounded-md text-xs font-semibold transition-all ${manageJobTab === 'ai_matcher' ? 'bg-primary/10 text-primary shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
+                >
+                  <Sparkles size={12} className={manageJobTab === 'ai_matcher' ? 'text-primary' : 'text-muted-foreground'} />
+                  Source Candidates with AI
+                </button>
+              </div>
             </div>
 
             {/* Grid layout: Description & Applicants */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            {manageJobTab === 'applicants' && (
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
 
-              {/* Left Column: Job Description */}
-              <div className="lg:col-span-1 space-y-6">
-                <div className="p-5 rounded-xl bg-card border border-border/30">
-                  <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-3 flex items-center gap-1.5">
-                    <Briefcase size={13} className="text-primary" />
-                    Role Description
-                  </h3>
-                  <div className="text-xs text-muted-foreground space-y-3 leading-relaxed max-h-[450px] overflow-y-auto pr-1">
-                    <p className="whitespace-pre-line">{selectedManageJob.description}</p>
-                    {selectedManageJob.requirements && selectedManageJob.requirements.length > 0 && (
-                      <div>
-                        <h4 className="font-bold text-foreground mt-4 mb-2">Requirements:</h4>
-                        <ul className="list-disc pl-4 space-y-1">
-                          {selectedManageJob.requirements.map((req: string, idx: number) => (
-                            <li key={idx}>{req}</li>
-                          ))}
-                        </ul>
-                      </div>
-                    )}
+                {/* Left Column: Job Description */}
+                <div className="lg:col-span-1 space-y-6">
+                  <div className="p-5 rounded-xl bg-card border border-border/30">
+                    <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-3 flex items-center gap-1.5">
+                      <Briefcase size={13} className="text-primary" />
+                      Role Description
+                    </h3>
+                    <div className="text-xs text-muted-foreground space-y-3 leading-relaxed max-h-[450px] overflow-y-auto pr-1">
+                      <p className="whitespace-pre-line">{selectedManageJob.description}</p>
+                      {selectedManageJob.requirements && selectedManageJob.requirements.length > 0 && (
+                        <div>
+                          <h4 className="font-bold text-foreground mt-4 mb-2">Requirements:</h4>
+                          <ul className="list-disc pl-4 space-y-1">
+                            {selectedManageJob.requirements.map((req: string, idx: number) => (
+                              <li key={idx}>{req}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
-              </div>
 
-              {/* Right Column: Applicants List */}
-              <div className="lg:col-span-2 space-y-6">
-                <div className="p-5 rounded-xl bg-card border border-border/30">
-                  <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-4 flex items-center gap-1.5">
-                    <Users size={14} className="text-accent" />
-                    Job Applicants ({applicantApplications.filter(a => a.jobId === selectedManageJob.id).length})
-                  </h3>
+                {/* Right Column: Applicants List */}
+                <div className="lg:col-span-2 space-y-6">
+                  <div className="p-5 rounded-xl bg-card border border-border/30">
+                    <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-4 flex items-center gap-1.5">
+                      <Users size={14} className="text-accent" />
+                      Job Applicants ({applicantApplications.filter(a => a.jobId === selectedManageJob.id).length})
+                    </h3>
 
-                  {/* Applicants Table/List */}
-                  {(() => {
-                    const jobApplicants = applicantApplications.filter(a => a.jobId === selectedManageJob.id)
-                    if (jobApplicants.length === 0) {
+                    {/* Applicants Table/List */}
+                    {(() => {
+                      const jobApplicants = applicantApplications.filter(a => a.jobId === selectedManageJob.id)
+                      if (jobApplicants.length === 0) {
+                        return (
+                          <div className="p-12 text-center text-muted-foreground">
+                            <Users size={32} className="mx-auto mb-3 stroke-[1.25] text-muted-foreground/30" />
+                            <p className="text-xs">No candidates have applied to this posting yet.</p>
+                          </div>
+                        )
+                      }
+
                       return (
-                        <div className="p-12 text-center text-muted-foreground">
-                          <Users size={32} className="mx-auto mb-3 stroke-[1.25] text-muted-foreground/30" />
-                          <p className="text-xs">No candidates have applied to this posting yet.</p>
+                        <div className="space-y-4">
+                          {jobApplicants.map((app) => {
+                            const prof = allUsers.find(u => u.id === app.userId)
+                            const name = prof?.name || 'Applicant'
+                            const title = prof?.title || 'Software Engineer'
+                            const location = prof?.location || 'Remote'
+                            const avatar = prof?.avatar || 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=64&h=64&fit=crop&crop=face'
+                            const email = prof?.email || ''
+
+                            return (
+                              <div key={app.id} className="p-4 rounded-lg bg-muted/10 border border-border/20 flex flex-col gap-4">
+                                <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
+                                  <div className="flex items-start gap-3">
+                                    <img src={avatar} alt={name} className="w-10 h-10 rounded-lg object-cover ring-2 ring-primary/10 flex-shrink-0" />
+                                    <div>
+                                      <h4 className="text-sm font-semibold text-foreground">{name}</h4>
+                                      <p className="text-xs text-muted-foreground mt-0.5">{title} · {location}</p>
+                                      {email && <p className="text-[10px] text-muted-foreground/60 mt-0.5">{email}</p>}
+                                    </div>
+                                  </div>
+
+                                  <div className="flex flex-wrap items-start gap-4">
+
+                                    {/* AI Match Score + why_match pills */}
+                                    {applicantScores[app.userId] !== undefined && (
+                                      <div className="space-y-1.5">
+                                        <div className="text-[9px] uppercase font-bold text-muted-foreground">AI Match</div>
+                                        <MatchBadge score={Math.round(applicantScores[app.userId].score)} />
+                                        {applicantScores[app.userId].score === 0 && (
+                                          <div className="mt-1 flex items-center gap-1 text-[10px] text-amber-500/80 font-medium">
+                                            <AlertCircle size={10} />
+                                            <span>Applicant might not perform well in this role</span>
+                                          </div>
+                                        )}
+                                        {applicantScores[app.userId].why_match && applicantScores[app.userId].why_match!.length > 0 && (
+                                          <div className="mt-2 p-3 rounded-lg bg-primary/5 border border-primary/10">
+                                            <div className="text-[10px] uppercase font-bold text-primary/80 mb-1 flex items-center gap-1.5">
+                                              <Sparkles size={10} /> Why recommended
+                                            </div>
+                                            <p className="text-xs text-muted-foreground leading-relaxed">
+                                              This candidate is a strong match for this role, specifically due to their experience with{' '}
+                                              <span className="font-semibold text-primary/90">
+                                                {applicantScores[app.userId].why_match!.slice(0, 4).map((w: any) => w.term).join(', ').replace(/, ([^,]*)$/, ', and $1')}
+                                              </span>.
+                                            </p>
+                                          </div>
+                                        )}
+                                      </div>
+                                    )}
+                                    {/* Status Selector */}
+                                    <div>
+                                      <div className="text-[9px] uppercase font-bold text-muted-foreground mb-1">Status</div>
+                                      <select
+                                        value={app.status || 'applied'}
+                                        onChange={(e) => handleUpdateStatus(app.id, e.target.value)}
+                                        className="rounded border border-border bg-card px-2 py-1 text-xs text-foreground focus:outline-none focus:border-primary transition-colors font-semibold"
+                                      >
+                                        <option value="applied">Applied</option>
+                                        <option value="screening">Screening</option>
+                                        <option value="interview">Interview</option>
+                                        <option value="offer">Offer Sent</option>
+                                        <option value="hired">Hired</option>
+                                        <option value="rejected">Rejected</option>
+                                      </select>
+                                    </div>
+
+                                    {/* Actions */}
+                                    <div className="flex items-center gap-1.5 md:ml-2">
+
+                                      <button
+                                        onClick={() => navigate(`/profile/${app.userId}`)}
+                                        className="p-1.5 rounded-lg border border-border bg-card hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+                                        title="View Profile"
+                                      >
+                                        <Eye size={13} />
+                                      </button>
+                                    </div>
+                                  </div>
+                                </div>
+                                {app.coverLetter && (
+                                  <div className="mt-2 p-3 rounded-md bg-muted/20 border border-border/30">
+                                    <div className="text-[10px] uppercase font-bold text-muted-foreground mb-1">Cover Letter</div>
+                                    <p className="text-xs text-foreground whitespace-pre-wrap leading-relaxed">{app.coverLetter}</p>
+                                  </div>
+                                )}
+                              </div>
+                            )
+                          })}
                         </div>
                       )
-                    }
-
-                    return (
-                      <div className="space-y-4">
-                        {jobApplicants.map((app) => {
-                          const prof = allUsers.find(u => u.id === app.userId)
-                          const name = prof?.name || 'Applicant'
-                          const title = prof?.title || 'Software Engineer'
-                          const location = prof?.location || 'Remote'
-                          const avatar = prof?.avatar || 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=64&h=64&fit=crop&crop=face'
-                          const email = prof?.email || ''
-
-                          return (
-                            <div key={app.id} className="p-4 rounded-lg bg-muted/10 border border-border/20 flex flex-col md:flex-row md:items-center justify-between gap-4">
-                              <div className="flex items-start gap-3">
-                                <img src={avatar} alt={name} className="w-10 h-10 rounded-lg object-cover ring-2 ring-primary/10 flex-shrink-0" />
-                                <div>
-                                  <h4 className="text-sm font-semibold text-foreground">{name}</h4>
-                                  <p className="text-xs text-muted-foreground mt-0.5">{title} · {location}</p>
-                                  {email && <p className="text-[10px] text-muted-foreground/60 mt-0.5">{email}</p>}
-                                </div>
-                              </div>
-
-                              <div className="flex flex-wrap items-center gap-4">
-                                {/* Status Selector */}
-                                <div>
-                                  <div className="text-[9px] uppercase font-bold text-muted-foreground mb-1">Status</div>
-                                  <select
-                                    value={app.status || 'applied'}
-                                    onChange={(e) => handleUpdateStatus(app.id, e.target.value)}
-                                    className="rounded border border-border bg-card px-2 py-1 text-xs text-foreground focus:outline-none focus:border-primary transition-colors font-semibold"
-                                  >
-                                    <option value="applied">Applied</option>
-                                    <option value="screening">Screening</option>
-                                    <option value="interview">Interview</option>
-                                    <option value="offer">Offer Sent</option>
-                                    <option value="hired">Hired</option>
-                                    <option value="rejected">Rejected</option>
-                                  </select>
-                                </div>
-
-                                {/* Actions */}
-                                <div className="flex items-center gap-1.5 md:ml-2">
-
-                                  <button
-                                    onClick={() => navigate(`/profile/${app.userId}`)}
-                                    className="p-1.5 rounded-lg border border-border bg-card hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
-                                    title="View Profile"
-                                  >
-                                    <Eye size={13} />
-                                  </button>
-                                </div>
-                              </div>
-                            </div>
-                          )
-                        })}
-                      </div>
-                    )
-                  })()}
-                </div>
-              </div>
-
-            </div>
-
-          </div>
-        ) : (
-          <>
-            {/* Tab navigation */}
-            <div className="flex gap-6 mb-8 border-b border-border/30 pb-px">
-              {(['overview', 'match'] as const).map(tab => (
-                <button
-                  key={tab}
-                  onClick={() => setActiveTab(tab)}
-                  className={`pb-3 text-xs font-bold uppercase tracking-wider transition-all relative ${activeTab === tab ? 'text-primary' : 'text-muted-foreground hover:text-foreground'
-                    }`}
-                >
-                  {tab === 'match' ? 'AI Candidate Matcher' : tab}
-                  {activeTab === tab && (
-                    <motion.div
-                      layoutId="activeTabUnderline"
-                      className="absolute bottom-0 inset-x-0 h-0.5 bg-primary"
-                    />
-                  )}
-                </button>
-              ))}
-            </div>
-
-            {activeTab === 'overview' && (
-              <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
-
-                {/* Left column 2/3 */}
-                <div className="xl:col-span-2 space-y-6">
-
-                  {/* Job postings */}
-                  <div className="rounded-xl bg-card border border-border/30 overflow-hidden">
-                    <div className="flex items-center justify-between p-4 border-b border-border/30 bg-muted/10">
-                      <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Active Job Postings</h3>
-                      <button
-                        onClick={() => navigate('/jobs')}
-                        className="text-xs text-primary hover:underline flex items-center gap-1 font-semibold"
-                      >
-                        Manage all <ChevronRight size={12} />
-                      </button>
-                    </div>
-                    <div className="overflow-x-auto">
-                      {(() => {
-                        const myJobs = jobs.filter(j => j.postedBy === user?.id)
-                        if (myJobs.length === 0) {
-                          return (
-                            <div className="p-8 text-center text-muted-foreground">
-                              <Briefcase size={32} className="mx-auto mb-3 stroke-[1.25] text-muted-foreground/30" />
-                              <p className="text-xs">You haven't posted any jobs yet.</p>
-                              <button
-                                onClick={() => navigate('/post-job')}
-                                className="mt-3 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary text-white text-xs font-semibold hover:bg-primary/95 transition-all shadow-sm"
-                              >
-                                <Plus size={12} /> Post your first job
-                              </button>
-                            </div>
-                          )
-                        }
-
-                        return (
-                          <table className="w-full text-left">
-                            <thead>
-                              <tr className="border-b border-border/30">
-                                <th className="px-5 py-3 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Role</th>
-                                <th className="px-5 py-3 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Applicants</th>
-                                <th className="px-5 py-3 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">New Today</th>
-                                <th className="px-5 py-3 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Top Match</th>
-                                <th className="px-5 py-3 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Views</th>
-                                <th className="px-5 py-3 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Status</th>
-                                <th className="px-5 py-3 text-[10px] font-bold uppercase tracking-wider text-muted-foreground"></th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {myJobs.map((job, i) => {
-                                const jobApplicants = applicantApplications.filter(a => a.jobId === job.id)
-                                const topScore = jobApplicants.length > 0
-                                  ? Math.max(...jobApplicants.map(a => applicantScores[a.userId]?.score || a.match || 75))
-                                  : 0
-                                return (
-                                  <tr key={job.id} className={`border-b border-border/20 hover:bg-muted/10 transition-colors ${i === myJobs.length - 1 ? 'border-b-0' : ''}`}>
-                                    <td className="px-5 py-3.5 text-xs font-semibold text-foreground">{job.title}</td>
-                                    <td className="px-5 py-3.5 text-xs">{jobApplicants.length}</td>
-                                    <td className="px-5 py-3.5">
-                                      <span className="text-xs text-emerald-400 font-semibold">
-                                        +{jobApplicants.filter(a => a.status === 'applied').length}
-                                      </span>
-                                    </td>
-                                    <td className="px-5 py-3.5">
-                                      {topScore > 0 ? <MatchBadge score={Math.round(topScore)} /> : <span className="text-xs text-muted-foreground">—</span>}
-                                    </td>
-                                    <td className="px-5 py-3.5 text-xs text-muted-foreground">{(job.views || 0).toLocaleString()}</td>
-                                    <td className="px-5 py-3.5">
-                                      <span className={`text-[9px] px-2 py-0.5 rounded border uppercase font-bold bg-emerald-500/5 text-emerald-400 border-emerald-500/10`}>
-                                        Active
-                                      </span>
-                                    </td>
-                                    <td className="px-5 py-3.5 text-right">
-                                      <button
-                                        onClick={() => setSelectedManageJob(job)}
-                                        className="text-xs text-primary hover:underline font-semibold"
-                                      >
-                                        Manage
-                                      </button>
-                                    </td>
-                                  </tr>
-                                )
-                              })}
-                            </tbody>
-                          </table>
-                        )
-                      })()}
-                    </div>
+                    })()}
                   </div>
-
                 </div>
 
-                {/* Right sidebar 1/3 */}
-                <div className="space-y-6">
-
-                  {/* AI top candidates */}
-                  <div className="p-5 rounded-xl bg-card border border-border/30">
-                    <div className="flex items-center justify-between mb-4">
-                      <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-                        <Brain size={14} className="text-primary" />
-                        AI Top Candidates
-                      </h3>
-                    </div>
-                    <div className="space-y-3">
-                      {candidates.slice(0, 4).map((candidate, i) => (
-                        <div
-                          key={candidate.id}
-                          className="flex items-center gap-3 p-2.5 rounded-lg border border-border/30 bg-muted/10 hover:border-primary/20 transition-all cursor-pointer group"
-                          onClick={() => navigate(`/profile/${candidate.id}`)}
-                        >
-                          <div className="relative flex-shrink-0">
-                            <img src={candidate.avatar} alt={candidate.name} className="w-8 h-8 rounded-full object-cover ring-2 ring-primary/10" />
-                            <div className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-card border border-border/30 flex items-center justify-center text-[8px] font-bold text-primary">
-                              {i + 1}
-                            </div>
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="text-xs font-semibold truncate group-hover:text-primary transition-colors text-foreground">{candidate.name}</div>
-                            <div className="text-[10px] text-muted-foreground truncate mt-0.5">{candidate.title}</div>
-                          </div>
-                          <MatchBadge score={candidate.aiScore} />
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                </div>
               </div>
             )}
 
-            {activeTab === 'match' && (
+            {manageJobTab === 'ai_matcher' && (
               <div className="space-y-8">
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
 
                   {/* Left Column: Job Selector & Description Input */}
                   <div className="lg:col-span-1 space-y-6">
                     <div className="p-5 rounded-xl bg-card border border-border/30 flex flex-col space-y-4">
-                      <div className="flex items-center gap-2 mb-1">
-                        <Briefcase size={16} className="text-primary" />
-                        <h3 className="text-sm font-bold text-foreground">Select Job Posting</h3>
-                      </div>
-
-                      <div>
-                        <label className="block text-[10px] uppercase font-bold text-muted-foreground mb-2">
-                          Choose Active Role
-                        </label>
-                        <select
-                          value={selectedJobId}
-                          onChange={(e) => setSelectedJobId(e.target.value)}
-                          className="w-full rounded-lg border border-border bg-muted/20 px-3 py-2 text-xs font-semibold text-foreground focus:outline-none focus:border-primary transition-colors"
-                        >
-                          <option value="" className="bg-card text-muted-foreground">-- Custom Search / Paste Description --</option>
-                          {jobs.map((job) => (
-                            <option key={job.id} value={job.id} className="bg-card text-foreground">
-                              {job.title} ({job.company})
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-
                       <div className="flex flex-col flex-1">
                         <label className="block text-[10px] uppercase font-bold text-muted-foreground mb-2">
                           Job Description & Requirements
@@ -679,7 +619,7 @@ export function RecruiterDashboard() {
                       <button
                         onClick={handleMatchCandidates}
                         disabled={matchingLoading || !customJobDescription.trim()}
-                        className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-primary hover:bg-primary/90 disabled:bg-primary/50 text-white text-xs font-bold transition-all shadow-md active:scale-[0.98]"
+                        className="w-full btn-primary"
                       >
                         {matchingLoading ? (
                           <>
@@ -690,6 +630,24 @@ export function RecruiterDashboard() {
                           <>
                             <Sparkles size={13} />
                             Find Fair-Aware Matches
+                          </>
+                        )}
+                      </button>
+
+                      <button
+                        onClick={handleAuditFairness}
+                        disabled={auditLoading || !customJobDescription.trim()}
+                        className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg border border-primary/20 hover:bg-primary/5 text-primary text-xs font-bold transition-all mt-3 active:scale-[0.98]"
+                      >
+                        {auditLoading ? (
+                          <>
+                            <RefreshCw size={13} className="animate-spin" />
+                            Running Audit...
+                          </>
+                        ) : (
+                          <>
+                            <BarChart3 size={13} />
+                            Audit System Fairness
                           </>
                         )}
                       </button>
@@ -748,7 +706,7 @@ export function RecruiterDashboard() {
                                   <th className="px-5 py-3 text-[10px] font-bold uppercase tracking-wider text-muted-foreground w-56">Candidate</th>
                                   <th className="px-5 py-3 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Bio</th>
                                   <th className="px-5 py-3 text-[10px] font-bold uppercase tracking-wider text-muted-foreground w-28">Fit Score</th>
-                                  <th className="px-5 py-3 text-[10px] font-bold uppercase tracking-wider text-muted-foreground w-44">Recommendation</th>
+                                  <th className="px-5 py-3 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Why Matched</th>
                                   <th className="px-5 py-3 text-[10px] font-bold uppercase tracking-wider text-muted-foreground w-10"></th>
                                 </tr>
                               </thead>
@@ -791,19 +749,18 @@ export function RecruiterDashboard() {
                                       <MatchBadge score={Math.round(cand.similarity_score * 100)} />
                                     </td>
                                     <td className="px-5 py-4">
-                                      <div className="flex items-center gap-2">
-                                        <span className={`text-[9px] px-2 py-0.5 rounded border uppercase font-bold ${cand.shortlisted_fair
-                                          ? 'bg-emerald-500/5 text-emerald-400 border-emerald-500/10'
-                                          : 'bg-muted/30 text-muted-foreground border-border/30'
-                                          }`}>
-                                          {cand.shortlisted_fair ? 'Recommend' : 'Skip'}
-                                        </span>
-                                        {cand.reranked && (
-                                          <span className="text-[9px] px-2 py-0.5 rounded border uppercase font-bold bg-purple-500/5 text-purple-400 border-purple-500/10 flex items-center gap-0.5">
-                                            ⚖️ Reranked
-                                          </span>
-                                        )}
-                                      </div>
+                                      {cand.why_match && cand.why_match.length > 0 ? (
+                                        <div className="p-2 rounded-lg bg-primary/5 border border-primary/10 max-w-[200px]">
+                                          <p className="text-[10px] text-muted-foreground leading-relaxed">
+                                            Match driven by experience with{' '}
+                                            <span className="font-semibold text-primary/90">
+                                              {cand.why_match.slice(0, 4).map((w: any) => w.term).join(', ').replace(/, ([^,]*)$/, ', and $1')}
+                                            </span>.
+                                          </p>
+                                        </div>
+                                      ) : (
+                                        <span className="text-[10px] text-muted-foreground">—</span>
+                                      )}
                                     </td>
                                     <td className="px-5 py-4" onClick={(e) => e.stopPropagation()}>
                                       {cand.resumeUrl ? (
@@ -818,11 +775,7 @@ export function RecruiterDashboard() {
                                         >
                                           <Eye size={14} />
                                         </button>
-                                      ) : (
-                                        !cand.userId.startsWith('csv-') ? (
-                                          <ArrowUpRight size={14} className="text-muted-foreground group-hover:text-primary transition-transform duration-200 group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
-                                        ) : null
-                                      )}
+                                      ) : null}
                                     </td>
                                   </tr>
                                 ))}
@@ -837,6 +790,138 @@ export function RecruiterDashboard() {
                 </div>
               </div>
             )}
+          </div>
+        ) : (
+          <>
+
+            <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
+
+              {/* Left column 2/3 */}
+              <div className="xl:col-span-2 space-y-6">
+
+                {/* Job postings */}
+                <div className="rounded-xl bg-card border border-border/30 overflow-hidden">
+                  <div className="flex items-center justify-between p-4 border-b border-border/30 bg-muted/10">
+                    <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Active Job Postings</h3>
+                    <button
+                      onClick={() => navigate('/jobs')}
+                      className="text-xs text-primary hover:underline flex items-center gap-1 font-semibold"
+                    >
+                      Manage all <ChevronRight size={12} />
+                    </button>
+                  </div>
+                  <div className="overflow-x-auto">
+                    {(() => {
+                      const myJobs = jobs.filter(j => j.postedBy === user?.id)
+                      if (myJobs.length === 0) {
+                        return (
+                          <div className="p-8 text-center text-muted-foreground">
+                            <Briefcase size={32} className="mx-auto mb-3 stroke-[1.25] text-muted-foreground/30" />
+                            <p className="text-xs">You haven't posted any jobs yet.</p>
+                            <button
+                              onClick={() => navigate('/post-job')}
+                              className="mt-3 btn-primary"
+                            >
+                              <Plus size={12} /> Post your first job
+                            </button>
+                          </div>
+                        )
+                      }
+
+                      return (
+                        <table className="w-full text-left">
+                          <thead>
+                            <tr className="border-b border-border/30">
+                              <th className="px-5 py-3 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Role</th>
+                              <th className="px-5 py-3 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Applicants</th>
+                              <th className="px-5 py-3 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">New Today</th>
+                              <th className="px-5 py-3 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Top Match</th>
+                              <th className="px-5 py-3 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Views</th>
+                              <th className="px-5 py-3 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Status</th>
+                              <th className="px-5 py-3 text-[10px] font-bold uppercase tracking-wider text-muted-foreground"></th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {myJobs.map((job, i) => {
+                              const jobApplicants = applicantApplications.filter(a => a.jobId === job.id)
+                              const topScore = jobApplicants.length > 0
+                                ? Math.max(...jobApplicants.map(a => applicantScores[a.userId]?.score || a.match || 75))
+                                : 0
+                              return (
+                                <tr key={job.id} className={`border-b border-border/20 hover:bg-muted/10 transition-colors ${i === myJobs.length - 1 ? 'border-b-0' : ''}`}>
+                                  <td className="px-5 py-3.5 text-xs font-semibold text-foreground">{job.title}</td>
+                                  <td className="px-5 py-3.5 text-xs">{jobApplicants.length}</td>
+                                  <td className="px-5 py-3.5">
+                                    <span className="text-xs text-emerald-400 font-semibold">
+                                      +{jobApplicants.filter(a => a.status === 'applied').length}
+                                    </span>
+                                  </td>
+                                  <td className="px-5 py-3.5">
+                                    {topScore > 0 ? <MatchBadge score={Math.round(topScore)} /> : <span className="text-xs text-muted-foreground">—</span>}
+                                  </td>
+                                  <td className="px-5 py-3.5 text-xs text-muted-foreground">{(job.views || 0).toLocaleString()}</td>
+                                  <td className="px-5 py-3.5">
+                                    <span className={`text-[9px] px-2 py-0.5 rounded border uppercase font-bold bg-emerald-500/5 text-emerald-400 border-emerald-500/10`}>
+                                      Active
+                                    </span>
+                                  </td>
+                                  <td className="px-5 py-3.5 text-right">
+                                    <button
+                                      onClick={() => setSelectedManageJob(job)}
+                                      className="text-xs text-primary hover:underline font-semibold"
+                                    >
+                                      Manage
+                                    </button>
+                                  </td>
+                                </tr>
+                              )
+                            })}
+                          </tbody>
+                        </table>
+                      )
+                    })()}
+                  </div>
+                </div>
+
+              </div>
+
+              {/* Right sidebar 1/3 */}
+              <div className="space-y-6">
+
+                {/* AI top candidates */}
+                <div className="p-5 rounded-xl bg-card border border-border/30">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                      <Brain size={14} className="text-primary" />
+                      AI Top Candidates
+                    </h3>
+                  </div>
+                  <div className="space-y-3">
+                    {candidates.slice(0, 4).map((candidate, i) => (
+                      <div
+                        key={candidate.id}
+                        className="flex items-center gap-3 p-2.5 rounded-lg border border-border/30 bg-muted/10 hover:border-primary/20 transition-all cursor-pointer group"
+                        onClick={() => navigate(`/profile/${candidate.id}`)}
+                      >
+                        <div className="relative flex-shrink-0">
+                          <img src={candidate.avatar} alt={candidate.name} className="w-8 h-8 rounded-full object-cover ring-2 ring-primary/10" />
+                          <div className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-card border border-border/30 flex items-center justify-center text-[8px] font-bold text-primary">
+                            {i + 1}
+                          </div>
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="text-xs font-semibold truncate group-hover:text-primary transition-colors text-foreground">{candidate.name}</div>
+                          <div className="text-[10px] text-muted-foreground truncate mt-0.5">{candidate.title}</div>
+                        </div>
+                        <MatchBadge score={candidate.aiScore} />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+              </div>
+            </div>
+
           </>
         )}
       </div>
@@ -879,6 +964,149 @@ export function RecruiterDashboard() {
                 className="w-full h-full border border-border/30 rounded-lg shadow-sm"
                 title="CV Document Preview"
               />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Fairness Dashboard Modal */}
+      {showFairnessModal && fairnessAuditResults && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm transition-all duration-300">
+          <div className="w-full max-w-4xl max-h-[90vh] overflow-y-auto flex flex-col bg-card border border-border/80 rounded-xl shadow-2xl">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between px-5 py-4 border-b border-border/40 bg-muted/20">
+              <div className="flex items-center gap-2">
+                <BarChart3 size={16} className="text-primary" />
+                <h3 className="text-sm font-semibold text-foreground tracking-tight" style={{ fontFamily: 'Outfit, sans-serif' }}>
+                  AI Fairness Audit Dashboard
+                </h3>
+              </div>
+              <button
+                onClick={() => setShowFairnessModal(false)}
+                className="p-1.5 rounded-lg border border-border bg-card hover:bg-muted text-muted-foreground hover:text-foreground transition-all cursor-pointer"
+              >
+                <X size={14} />
+              </button>
+            </div>
+
+            {/* Modal Content */}
+            <div className="p-6 space-y-6">
+              <div className="flex items-center justify-between p-4 bg-primary/5 rounded-lg border border-primary/10">
+                <div>
+                  <h4 className="text-sm font-bold text-foreground">Compliance Status: {fairnessAuditResults.status || 'PASS'}</h4>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {fairnessAuditResults.note || 'Metrics evaluated against population-level benchmark datasets.'}
+                  </p>
+                </div>
+                <div className={`px-4 py-2 rounded-lg font-bold text-xs ${fairnessAuditResults.status === 'FLAG' ? 'bg-red-500/10 text-red-500' : 'bg-emerald-500/10 text-emerald-500'
+                  }`}>
+                  {fairnessAuditResults.status === 'FLAG' ? 'NEEDS ATTENTION' : 'FAIRNESS THRESHOLDS MET'}
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Demographic Parity Difference (DPD) Chart */}
+                <div className="p-4 bg-card border border-border/40 rounded-xl shadow-sm flex flex-col items-center">
+                  <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-4">Demographic Parity Difference (DPD)</h4>
+                  <p className="text-[10px] text-muted-foreground text-center mb-2 px-4">
+                    Measures the difference in selection rates across demographic groups. Lower is better (Threshold ≤ 0.10).
+                  </p>
+                  <Plot
+                    data={[
+                      {
+                        x: ['DPD'],
+                        y: [fairnessAuditResults.DPD],
+                        type: 'bar',
+                        marker: {
+                          color: fairnessAuditResults.DPD <= 0.10 ? '#10b981' : '#ef4444' // emerald or red
+                        },
+                        width: 0.4
+                      }
+                    ]}
+                    layout={{
+                      width: 300,
+                      height: 250,
+                      margin: { t: 20, b: 30, l: 40, r: 20 },
+                      paper_bgcolor: 'transparent',
+                      plot_bgcolor: 'transparent',
+                      font: { color: '#888' },
+                      yaxis: { range: [0, 1], showgrid: true, gridcolor: 'rgba(128,128,128,0.2)' },
+                      xaxis: { showgrid: false },
+                      shapes: [
+                        {
+                          type: 'line',
+                          x0: -0.5,
+                          x1: 0.5,
+                          y0: 0.10,
+                          y1: 0.10,
+                          line: { color: 'rgba(239, 68, 68, 0.5)', width: 2, dash: 'dash' }
+                        }
+                      ],
+                      annotations: [
+                        {
+                          x: 0.4,
+                          y: 0.10,
+                          xref: 'x',
+                          yref: 'y',
+                          text: 'Max: 0.10',
+                          showarrow: false,
+                          font: { color: '#ef4444', size: 10 },
+                          xanchor: 'left',
+                          yanchor: 'bottom'
+                        }
+                      ]
+                    }}
+                    config={{ displayModeBar: false }}
+                  />
+                  <div className="mt-4 text-center">
+                    <span className="text-2xl font-bold font-mono">{fairnessAuditResults.DPD.toFixed(3)}</span>
+                  </div>
+                </div>
+
+                {/* Disparate Impact Ratio (DIR) Chart */}
+                <div className="p-4 bg-card border border-border/40 rounded-xl shadow-sm flex flex-col items-center">
+                  <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-4">Disparate Impact Ratio (DIR)</h4>
+                  <p className="text-[10px] text-muted-foreground text-center mb-2 px-4">
+                    Ratio of favorable outcomes for unprivileged vs privileged groups. Higher is better (Threshold ≥ 0.80).
+                  </p>
+                  <Plot
+                    data={[
+                      {
+                        type: 'indicator',
+                        mode: 'gauge+number',
+                        value: fairnessAuditResults.DIR,
+                        gauge: {
+                          axis: { range: [0, 1.2], tickwidth: 1, tickcolor: 'rgba(128,128,128,0.5)' },
+                          bar: { color: fairnessAuditResults.DIR >= 0.80 ? '#10b981' : '#ef4444' },
+                          bgcolor: 'rgba(128,128,128,0.1)',
+                          borderwidth: 0,
+                          bordercolor: 'transparent',
+                          steps: [
+                            { range: [0, 0.8], color: 'rgba(239, 68, 68, 0.1)' },
+                            { range: [0.8, 1.2], color: 'rgba(16, 185, 129, 0.1)' }
+                          ],
+                          threshold: {
+                            line: { color: '#ef4444', width: 2 },
+                            thickness: 0.75,
+                            value: 0.80
+                          }
+                        }
+                      }
+                    ]}
+                    layout={{
+                      width: 300,
+                      height: 250,
+                      margin: { t: 40, b: 20, l: 30, r: 30 },
+                      paper_bgcolor: 'transparent',
+                      font: { color: '#888' }
+                    }}
+                    config={{ displayModeBar: false }}
+                  />
+                  <div className="mt-4 text-center">
+                    <span className="text-2xl font-bold font-mono">{fairnessAuditResults.DIR.toFixed(3)}</span>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </div>

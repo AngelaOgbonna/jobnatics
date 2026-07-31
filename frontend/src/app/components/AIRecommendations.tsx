@@ -5,8 +5,9 @@ import { Layout } from './Layout'
 import {
   Brain, Sparkles, Target, TrendingUp, Send, Bot, User,
   ChevronRight, Zap, ArrowUpRight, RefreshCw, Star,
-  AlertCircle, BookOpen, MapPin, DollarSign,
+  AlertCircle, BookOpen, MapPin, DollarSign, X, Briefcase, ExternalLink,
 } from 'lucide-react'
+import { calculateJobMatchScore } from '../data/mockData'
 import { motion } from 'motion/react'
 import {
   RadarChart, PolarGrid, PolarAngleAxis, Radar, ResponsiveContainer,
@@ -139,7 +140,7 @@ function buildUserResumeText(u: any) {
 
 export function AIRecommendations() {
   const navigate = useNavigate()
-  const { user, jobs } = useApp()
+  const { user, jobs, aiMatchScores } = useApp()
 
   const aiResponses = buildAIResponses(user)
   const radarData = buildRadarData(user)
@@ -202,6 +203,7 @@ export function AIRecommendations() {
 
   const [matchedJobs, setMatchedJobs] = useState<any[] | null>(null)
   const [matchingLoading, setMatchingLoading] = useState(false)
+  const [selectedAIJob, setSelectedAIJob] = useState<any | null>(null)
 
   useEffect(() => {
     if (!user) return
@@ -210,6 +212,13 @@ export function AIRecommendations() {
       setMatchingLoading(true)
       try {
         const resumeText = buildUserResumeText(user)
+        const liveJobs = jobs.map(j => ({
+          id: j.id,
+          title: j.title,
+          company: j.company,
+          description: j.description || (j.title + ' ' + (j.skills || []).join(' '))
+        }))
+
         const res = await fetch(`${BACKEND_URL}/api/match`, {
           method: 'POST',
           headers: {
@@ -218,6 +227,7 @@ export function AIRecommendations() {
           body: JSON.stringify({
             resume_text: resumeText,
             demographic_group: 0,
+            live_jobs: liveJobs,
           }),
         })
 
@@ -242,21 +252,24 @@ export function AIRecommendations() {
                j.company.toLowerCase().trim() === rec.company.toLowerCase().trim()
         )
         return {
-          id: fullJob?.id || `fallback-${i}`,
+          id: fullJob?.id || `ai-${i}`,
           title: rec.job_title,
           company: rec.company,
           location: fullJob?.location || 'Remote',
           salary: fullJob?.salary || '$80K – $120K',
           posted: fullJob?.posted || 'Just now',
           remote: fullJob?.remote || 'remote',
-          skills: fullJob?.skills || ['Engineering'],
+          skills: fullJob?.skills || [],
           match: Math.round(rec.similarity_score * 100),
-          recommended: rec.recommended
+          recommended: rec.recommended,
+          why_match: rec.why_match || [],
+          hasFirestoreJob: !!fullJob,
         }
       }).slice(0, 5)
-    : jobs.slice(0, 5).map(j => ({ ...j, match: j.match || 85, recommended: true })).sort((a, b) => b.match - a.match)
+    : jobs.slice(0, 5).map(j => ({ ...j, match: calculateJobMatchScore(user?.skills || [], j.skills, j.id, j.title, j.company, aiMatchScores) || 85, recommended: true, why_match: [], hasFirestoreJob: true })).sort((a, b) => b.match - a.match)
 
   return (
+    <>
     <Layout>
       <div className="p-6 max-w-7xl mx-auto">
         <div className="mb-6">
@@ -309,28 +322,51 @@ export function AIRecommendations() {
                       initial={{ opacity: 0, x: -10 }}
                       animate={{ opacity: 1, x: 0 }}
                       transition={{ delay: i * 0.08 }}
-                      className="flex items-center gap-4 p-3 rounded-xl hover:bg-muted/40 transition-colors cursor-pointer group"
-                      onClick={() => navigate(`/jobs/${job.id}`)}
+                      className="flex flex-col gap-2 p-3 rounded-xl hover:bg-muted/40 transition-colors cursor-pointer group"
+                      onClick={() => {
+                        if (job.hasFirestoreJob) {
+                          navigate(`/jobs/${job.id}`)
+                        } else {
+                          setSelectedAIJob(job)
+                        }
+                      }}
                     >
-                      <div className="flex-shrink-0 w-8 h-8 rounded-lg bg-muted flex items-center justify-center text-base">
-                        {['💳', '🛍️', '🤖', '₿', '✈️'][i] || '💼'}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="text-sm font-medium group-hover:text-primary transition-colors truncate">{job.title}</div>
-                        <div className="text-xs text-muted-foreground flex items-center gap-2">
-                          {job.company}
-                          <span className="flex items-center gap-1"><DollarSign size={10} /> {job.salary.split(' – ')[0]}+</span>
+                      <div className="flex items-center gap-4">
+                        <div className="flex-shrink-0 w-8 h-8 rounded-lg bg-muted flex items-center justify-center text-base">
+                          {['💳', '🛍️', '🤖', '₿', '✈️'][i] || '💼'}
                         </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="text-sm font-medium group-hover:text-primary transition-colors truncate">{job.title}</div>
+                          <div className="text-xs text-muted-foreground flex items-center gap-2">
+                            {job.company}
+                            <span className="flex items-center gap-1"><DollarSign size={10} /> {job.salary.split(' – ')[0]}+</span>
+                          </div>
+                        </div>
+                        <div>
+                          <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold border ${job.match >= 90 ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' :
+                            job.match >= 80 ? 'bg-primary/10 text-primary border-primary/20' :
+                              'bg-amber-500/10 text-amber-400 border-amber-500/20'
+                            }`}>
+                            <Sparkles size={9} strokeWidth={1.75} fill="currentColor" fillOpacity={0.15} className="animate-pulse" /> {job.match}%
+                          </span>
+                        </div>
+                        <ArrowUpRight size={14} strokeWidth={1.75} className="text-muted-foreground group-hover:text-primary transition-transform duration-200 group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
                       </div>
-                      <div>
-                        <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold border ${job.match >= 90 ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' :
-                          job.match >= 80 ? 'bg-primary/10 text-primary border-primary/20' :
-                            'bg-amber-500/10 text-amber-400 border-amber-500/20'
-                          }`}>
-                          <Sparkles size={9} strokeWidth={1.75} fill="currentColor" fillOpacity={0.15} className="animate-pulse" /> {job.match}%
-                        </span>
-                      </div>
-                      <ArrowUpRight size={14} strokeWidth={1.75} className="text-muted-foreground group-hover:text-primary transition-transform duration-200 group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
+                      {job.why_match && job.why_match.length > 0 && (
+                        <div className="pl-12 pr-2">
+                          <div className="p-3 rounded-lg bg-primary/5 border border-primary/10">
+                            <div className="text-[10px] uppercase font-bold text-primary/80 mb-1 flex items-center gap-1.5">
+                              <Sparkles size={10} /> Why you were matched
+                            </div>
+                            <p className="text-xs text-muted-foreground leading-relaxed">
+                              Your background is a strong match for this role, specifically due to your experience with{' '}
+                              <span className="font-semibold text-primary/90">
+                                {job.why_match.slice(0, 4).map((w: any) => w.term).join(', ').replace(/, ([^,]*)$/, ', and $1')}
+                              </span>.
+                            </p>
+                          </div>
+                        </div>
+                      )}
                     </motion.div>
                   ))
                 )}
@@ -419,5 +455,110 @@ export function AIRecommendations() {
         </div>
       </div>
     </Layout>
+
+      {/* AI Job Detail Modal — for recommendations not yet posted in Firestore */}
+      {selectedAIJob && (
+        <div
+          className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-background/70 backdrop-blur-sm"
+          onClick={() => setSelectedAIJob(null)}
+        >
+          <motion.div
+            initial={{ opacity: 0, y: 40 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 40 }}
+            transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+            className="w-full max-w-lg bg-card border border-border rounded-2xl shadow-2xl overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="flex items-start justify-between p-5 border-b border-border/40 bg-muted/10">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center text-xl">
+                  💼
+                </div>
+                <div>
+                  <h2 className="font-bold text-foreground" style={{ fontFamily: 'Outfit, sans-serif' }}>{selectedAIJob.title}</h2>
+                  <p className="text-xs text-muted-foreground mt-0.5">{selectedAIJob.company}</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold border ${
+                  selectedAIJob.match >= 90 ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' :
+                  selectedAIJob.match >= 80 ? 'bg-primary/10 text-primary border-primary/20' :
+                  'bg-amber-500/10 text-amber-400 border-amber-500/20'
+                }`}>
+                  <Sparkles size={9} strokeWidth={1.75} className="animate-pulse" />
+                  {selectedAIJob.match}% Match
+                </span>
+                <button
+                  onClick={() => setSelectedAIJob(null)}
+                  className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  <X size={14} />
+                </button>
+              </div>
+            </div>
+
+            {/* Body */}
+            <div className="p-5 space-y-4">
+              {/* Meta */}
+              <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
+                <span className="flex items-center gap-1"><MapPin size={12} /> {selectedAIJob.location}</span>
+                <span className="flex items-center gap-1"><DollarSign size={12} /> {selectedAIJob.salary}</span>
+                <span className="flex items-center gap-1"><Briefcase size={12} /> {selectedAIJob.remote}</span>
+              </div>
+
+              {/* Why matched */}
+              {selectedAIJob.why_match && selectedAIJob.why_match.length > 0 && (
+                <div className="p-4 rounded-xl bg-primary/5 border border-primary/10">
+                  <div className="text-[11px] uppercase font-bold text-primary/80 mb-1.5 flex items-center gap-1.5">
+                    <Sparkles size={11} /> Why you were matched
+                  </div>
+                  <p className="text-sm text-muted-foreground leading-relaxed">
+                    Your background is a strong match for this role, specifically due to your experience with{' '}
+                    <span className="font-semibold text-primary/90">
+                      {selectedAIJob.why_match.map((w: any) => w.term).join(', ').replace(/, ([^,]*)$/, ', and $1')}
+                    </span>.
+                  </p>
+                </div>
+              )}
+
+              {/* Skills */}
+              {selectedAIJob.skills && selectedAIJob.skills.length > 0 && (
+                <div>
+                  <div className="text-[10px] uppercase font-bold text-muted-foreground mb-2">Key Skills</div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {selectedAIJob.skills.slice(0, 8).map((s: string) => (
+                      <span key={s} className="px-2.5 py-0.5 rounded-lg bg-muted text-xs font-medium">{s}</span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Note */}
+              <p className="text-xs text-muted-foreground leading-relaxed bg-muted/30 rounded-lg p-3">
+                This role was identified by the AI matching engine from a broader job dataset. Browse the Jobs board or check back soon — it may appear as a live posting.
+              </p>
+            </div>
+
+            {/* Footer */}
+            <div className="px-5 pb-5 flex gap-2">
+              <button
+                onClick={() => { setSelectedAIJob(null); navigate('/jobs') }}
+                className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-primary text-white text-sm font-semibold hover:bg-primary/90 transition-all"
+              >
+                <ExternalLink size={14} /> Browse Similar Jobs
+              </button>
+              <button
+                onClick={() => setSelectedAIJob(null)}
+                className="px-4 py-2.5 rounded-xl border border-border text-sm text-muted-foreground hover:bg-muted transition-colors"
+              >
+                Close
+              </button>
+            </div>
+          </motion.div>
+        </div>
+      )}
+  </>
   )
 }
