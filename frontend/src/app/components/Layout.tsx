@@ -101,7 +101,7 @@ export function Layout({ children }: { children: ReactNode }) {
       <aside
         className={`fixed inset-y-0 left-0 z-50 flex flex-col transition-all duration-300 ease-in-out
           ${sidebarOpen ? 'w-64' : 'w-0 overflow-hidden lg:w-16'}
-          bg-sidebar border-r border-sidebar-border`}
+          bg-sidebar/80 backdrop-blur-xl border-r border-sidebar-border shadow-2xl shadow-black/5`}
       >
         {/* Logo */}
         <div className="flex items-center gap-3 px-4 py-5 border-b border-sidebar-border">
@@ -220,7 +220,7 @@ export function Layout({ children }: { children: ReactNode }) {
       {/* Main content */}
       <div className={`flex-1 flex flex-col min-w-0 transition-all duration-300 ${sidebarOpen ? 'lg:ml-64' : 'lg:ml-16'}`}>
         {/* Header */}
-        <header className="sticky top-0 z-40 flex items-center gap-4 px-4 py-3 border-b border-border bg-background/80 backdrop-blur-xl">
+        <header className="sticky top-0 z-40 flex items-center gap-4 px-4 py-3 border-b border-border bg-background/70 backdrop-blur-xl shadow-sm">
           <button
             onClick={() => setSidebarOpen(!sidebarOpen)}
             className="flex-shrink-0 w-9 h-9 rounded-lg flex items-center justify-center text-muted-foreground hover:bg-muted hover:text-foreground transition-colors group"

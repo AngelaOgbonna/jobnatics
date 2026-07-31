@@ -365,7 +365,7 @@ export function RecruiterDashboard() {
           <div className="flex gap-2">
             <button
               onClick={() => navigate('/post-job')}
-              className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-primary text-white text-xs font-semibold hover:bg-primary/95 transition-all shadow-sm"
+              className="btn-primary"
             >
               <Plus size={13} />
               Post New Job
@@ -619,7 +619,7 @@ export function RecruiterDashboard() {
                       <button
                         onClick={handleMatchCandidates}
                         disabled={matchingLoading || !customJobDescription.trim()}
-                        className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-primary hover:bg-primary/90 disabled:bg-primary/50 text-white text-xs font-bold transition-all shadow-md active:scale-[0.98]"
+                        className="w-full btn-primary"
                       >
                         {matchingLoading ? (
                           <>
@@ -820,7 +820,7 @@ export function RecruiterDashboard() {
                             <p className="text-xs">You haven't posted any jobs yet.</p>
                             <button
                               onClick={() => navigate('/post-job')}
-                              className="mt-3 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary text-white text-xs font-semibold hover:bg-primary/95 transition-all shadow-sm"
+                              className="mt-3 btn-primary"
                             >
                               <Plus size={12} /> Post your first job
                             </button>

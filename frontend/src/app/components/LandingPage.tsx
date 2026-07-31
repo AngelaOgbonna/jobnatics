@@ -189,7 +189,7 @@ export function LandingPage() {
             ))}
             <div className="pt-2 flex flex-col gap-2">
               <button onClick={() => navigate('/auth')} className="w-full py-2 text-sm border border-border rounded-lg">Sign In</button>
-              <button onClick={() => handleGetStarted()} className="w-full py-2 text-sm bg-primary text-white rounded-lg">Get Started Free</button>
+              <button onClick={() => handleGetStarted()} className="w-full btn-primary">Get Started Free</button>
             </div>
           </div>
         )} */}
@@ -398,7 +398,7 @@ export function LandingPage() {
                 key={role}
                 onClick={() => setActiveRole(role)}
                 className={`px-6 py-2.5 rounded-xl font-medium text-sm transition-all duration-200 ${activeRole === role
-                  ? 'bg-primary text-white shadow-lg shadow-primary/30'
+                  ? 'btn-primary'
                   : 'bg-card border border-border text-muted-foreground hover:text-foreground'
                   }`}
               >

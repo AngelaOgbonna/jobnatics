@@ -798,7 +798,7 @@ export function ApplicantDashboard() {
             <div className="px-5 pb-5 flex gap-2">
               <button
                 onClick={() => { setSelectedAIJob(null); navigate('/jobs') }}
-                className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-primary text-white text-sm font-semibold hover:bg-primary/90 transition-all"
+                className="flex-1 btn-primary"
               >
                 <Target size={14} /> Browse Similar Jobs
               </button>
