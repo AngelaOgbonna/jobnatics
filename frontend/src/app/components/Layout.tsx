@@ -101,11 +101,11 @@ export function Layout({ children }: { children: ReactNode }) {
       <aside
         className={`fixed inset-y-0 left-0 z-50 flex flex-col transition-all duration-300 ease-in-out
           ${sidebarOpen ? 'w-64' : 'w-0 overflow-hidden lg:w-16'}
-          bg-sidebar/80 backdrop-blur-xl border-r border-sidebar-border shadow-2xl shadow-black/5`}
+          bg-sidebar/95 backdrop-blur-2xl border-r border-sidebar-border shadow-2xl shadow-black/20`}
       >
         {/* Logo */}
         <div className="flex items-center gap-3 px-4 py-5 border-b border-sidebar-border">
-          <div className="flex-shrink-0 w-8 h-8 rounded-lg bg-gradient-to-br from-primary to-accent flex items-center justify-center shadow-lg shadow-primary/30 group cursor-pointer">
+          <div className="flex-shrink-0 w-8 h-8 rounded-lg bg-gradient-to-135 from-primary via-accent to-primary/70 flex items-center justify-center shadow-lg shadow-primary/40 group cursor-pointer ring-1 ring-white/10">
             <Zap size={16} strokeWidth={1.75} fill="currentColor" fillOpacity={0.2} className="text-white transition-transform duration-300 group-hover:scale-110 group-hover:rotate-12" />
           </div>
           {sidebarOpen && (

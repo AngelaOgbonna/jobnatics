@@ -4,14 +4,28 @@
 
 @layer components {
   .btn-primary {
-    @apply flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-primary text-primary-foreground text-xs font-medium transition-all hover:bg-primary/90 active:scale-[0.98] border border-transparent;
+    @apply flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-primary text-primary-foreground text-xs font-medium transition-all hover:opacity-90 active:scale-[0.98] border border-white/10 shadow-sm;
   }
-  
+
   .glass-card {
-    @apply bg-card/60 backdrop-blur-xl border border-border/50 shadow-sm rounded-2xl;
+    @apply bg-card/70 backdrop-blur-xl border border-border shadow-sm rounded-xl;
   }
-  
+
   .glass-panel {
-    @apply bg-background/60 backdrop-blur-xl border border-border/50 shadow-sm rounded-2xl;
+    @apply bg-background/70 backdrop-blur-xl border border-border shadow-sm rounded-xl;
+  }
+
+  /* Dark mode: cards get a subtle top-edge highlight for depth */
+  .dark .card,
+  .dark [class*="rounded"][class*="border"] {
+    box-shadow: 0 0 0 0.5px rgba(255,255,255,0.04) inset, 0 1px 3px rgba(0,0,0,0.4);
+  }
+
+  /* Glow on focused interactive elements in dark */
+  .dark .btn-primary:focus-visible,
+  .dark button:focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
+    box-shadow: 0 0 12px rgba(129, 140, 248, 0.3);
   }
 }
