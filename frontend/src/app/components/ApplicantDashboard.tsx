@@ -624,7 +624,7 @@ export function ApplicantDashboard() {
                         </td>
                         <td className="px-5 py-4 text-xs text-muted-foreground">{app.date}</td>
                         <td className="px-5 py-4 text-right">
-                          <button className="text-xs text-primary hover:underline font-semibold">View Details</button>
+                          <button onClick={() => navigate(`/jobs/${app.jobId}`)} className="text-xs text-primary hover:underline font-semibold">View Details</button>
                         </td>
                       </tr>
                     ))}
