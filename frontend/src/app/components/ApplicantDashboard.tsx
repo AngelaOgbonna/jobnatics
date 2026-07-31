@@ -72,29 +72,29 @@ function buildInsights(user: any) {
   const insights: { icon: any; text: string; type: string }[] = []
 
   if (user?.roleLevel === 'Senior' || user?.roleLevel === 'Lead' || user?.roleLevel === 'Executive') {
-    insights.push({ icon: TrendingUp, text: `Your ${user.roleLevel}-level positioning is in high demand — match rates are 18% above average for this tier.`, type: 'positive' })
-  } else {
-    insights.push({ icon: TrendingUp, text: `${user?.roleLevel || 'Mid'}-level roles have strong market demand right now — great time to apply.`, type: 'positive' })
+    insights.push({ icon: TrendingUp, text: `Your ${user.roleLevel}-level positioning is in high demand, with match rates 18% above average for this tier.`, type: 'positive' })
+  } else if (user?.roleLevel) {
+    insights.push({ icon: TrendingUp, text: `${user?.roleLevel || 'Mid'}-level roles have strong market demand right now, making this a great time to apply.`, type: 'positive' })
   }
 
   if (user?.github) {
-    insights.push({ icon: Award, text: `Your GitHub profile is linked — this boosts recruiter confidence and increases interview invites by ~30%.`, type: 'positive' })
+    insights.push({ icon: Award, text: `Your GitHub profile is linked. This boosts recruiter confidence and increases interview invites by ~30%.`, type: 'positive' })
   } else {
     insights.push({ icon: Award, text: `Adding your GitHub profile could increase interview invites by ~30% for technical roles.`, type: 'tip' })
   }
 
   if (user?.workStyle === 'Remote') {
-    insights.push({ icon: Target, text: `Remote preference opens up a global job pool — 3× more positions available vs. on-site only.`, type: 'tip' })
+    insights.push({ icon: Target, text: `Remote preference opens up a global job pool with 3× more positions available vs. on-site only.`, type: 'tip' })
   } else if (user?.workStyle === 'Hybrid') {
-    insights.push({ icon: Target, text: `Hybrid preference aligns with 65% of active job postings — strong match potential.`, type: 'tip' })
+    insights.push({ icon: Target, text: `Hybrid preference aligns with 65% of active job postings, indicating strong match potential.`, type: 'tip' })
   } else {
     insights.push({ icon: Target, text: `On-site preference puts you in a focused pool with less competition from remote-only candidates.`, type: 'tip' })
   }
 
-  if (!user?.bio || user.bio.length < 30) {
+  if (!user?.bio || user.bio.length < 20) {
     insights.push({ icon: AlertCircle, text: `A detailed bio helps the AI match you to niche roles. Add 2–3 sentences about your specialization.`, type: 'warning' })
   } else {
-    insights.push({ icon: AlertCircle, text: `Your profile bio is set — the AI uses it to match you to specialized roles beyond just your job title.`, type: 'positive' })
+    insights.push({ icon: AlertCircle, text: `Your profile bio is set. The AI uses it to match you to specialized roles beyond just your job title.`, type: 'positive' })
   }
 
   return insights.slice(0, 4)
@@ -790,7 +790,7 @@ export function ApplicantDashboard() {
 
               {/* Note */}
               <p className="text-xs text-muted-foreground leading-relaxed bg-muted/30 rounded-lg p-3">
-                This role was identified by the AI matching engine from a broader job dataset. Browse the Jobs board or check back soon — it may appear as a live posting.
+                This role was identified by the AI matching engine from a broader job dataset. Browse the Jobs board or check back soon as it may appear as a live posting.
               </p>
             </div>
 

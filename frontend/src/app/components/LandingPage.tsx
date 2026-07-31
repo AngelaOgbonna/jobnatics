@@ -28,7 +28,7 @@ const features = [
   {
     icon: Target,
     title: 'Demographic Parity Check',
-    description: 'Real-time fairness auditing evaluates candidate rankings on merit, experience, and skills — actively preventing unprivileged cohort skew.',
+    description: 'Real-time fairness auditing evaluates candidate rankings on merit, experience, and skills, actively preventing unprivileged cohort skew.',
     color: 'from-cyan-500 to-blue-500',
     glow: 'shadow-cyan-500/20',
   },
@@ -69,7 +69,7 @@ const testimonials = [
     name: 'Priya Sharma',
     title: 'Engineering Manager at Stripe',
     avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=80&h=80&fit=crop&crop=face',
-    quote: 'We hired our entire frontend team in 3 weeks using Jobnatics AI. The match quality was incredible — 9 of 10 hires are still with us 18 months later.',
+    quote: 'We hired our entire frontend team in 3 weeks using Jobnatics AI. The match quality was incredible, and 9 of 10 hires are still with us 18 months later.',
     rating: 5,
   },
   {
@@ -243,8 +243,7 @@ export function LandingPage() {
             className="text-muted-foreground max-w-2xl mx-auto mb-10"
             style={{ fontSize: 'clamp(1rem, 2.5vw, 1.2rem)', lineHeight: 1.7 }}
           >
-            Jobnatics AI combines semantic candidate matching with real-time bias auditing (DIR & DPD metrics).
-            Rank candidates on pure merit, eliminate demographic skew, and build high-performing teams with algorithmic fairness.
+            Jobnatics AI matches job seekers with employers based purely on real skills and qualifications, automatically removing hidden bias so every candidate gets a fair chance.
           </motion.p>
 
           <motion.div
