@@ -166,6 +166,20 @@ def preprocess_text(text: str) -> str:
     ]
     return " ".join(cleaned)
 
+def get_stem_mapping(text: str) -> dict:
+    if not isinstance(text, str):
+        return {}
+    text = fix_glued_words(text)
+    text = text.lower()
+    text = re.sub(r'[^a-z\s]', ' ', text)
+    tokens = word_tokenize(text)
+    mapping = {}
+    for w in tokens:
+        if w not in stop_words and len(w) > 2:
+            st = stemmer.stem(w)
+            if st not in mapping or len(w) < len(mapping[st]):
+                mapping[st] = w
+    return mapping
 
 # ── Startup ────────────────────────────────────────────────────────────────────
 
@@ -287,7 +301,7 @@ def rank_jobs(clean_resume: str, job_df: pd.DataFrame) -> pd.DataFrame:
 
 # ── Helper: explain match ───────────────────────────────────────────────────────
 
-def explain_match(clean_text_a: str, clean_text_b: str, top_n: int = 5) -> list:
+def explain_match(clean_text_a: str, clean_text_b: str, top_n: int = 5, stem_mapping: dict = None) -> list:
     """
     Returns the top contributing TF-IDF terms between two pre-processed text
     strings (resume ↔ job, or job ↔ resume for recruiter view).  Uses the
@@ -308,7 +322,7 @@ def explain_match(clean_text_a: str, clean_text_b: str, top_n: int = 5) -> list:
         
         return [
             {
-                "term": str(job_feature_names[i]),
+                "term": stem_mapping.get(str(job_feature_names[i]), str(job_feature_names[i])) if stem_mapping else str(job_feature_names[i]),
                 "contribution": round(float(contributions[i]), 4),
             }
             for i in top_idx if contributions[i] > 0
@@ -470,6 +484,7 @@ def individual_match(payload: ResumePayload):
                     "why_match": explain_match(
                         clean_resume,
                         str(row.get('Job_Description_clean', '')),
+                        stem_mapping=get_stem_mapping(payload.resume_text + " " + str(row.get('Job Description', '')))
                     ),
                 }
                 for i, (_, row) in enumerate(top.iterrows())
@@ -854,11 +869,11 @@ def match_applicants(payload: ApplicantMatchPayload):
             match_percentage = round(score * 100, 1)
             base_outcome = bool(score >= BASE_THRESHOLD)
             
-            # Compute why_match using shared job vectoriser
-            clean_job = preprocess_text(app_item.resume_text)  # reuse clean
+            clean_job = preprocess_text(payload.job_description)
             why = explain_match(
-                preprocess_text(payload.job_description),
-                preprocess_text(app_item.resume_text),
+                clean_job,
+                clean_resume,
+                stem_mapping=get_stem_mapping(payload.job_description + " " + app_item.resume_text)
             )
 
             matches.append({
