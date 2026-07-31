@@ -25,6 +25,7 @@ export function Settings() {
     title: user?.title || '',
     company: user?.company || '',
     location: user?.location || '',
+    gender: user?.gender || 'female',
     bio: user?.bio || '',
     website: user?.website || '',
     linkedin: user?.linkedin || '',
@@ -75,6 +76,7 @@ export function Settings() {
         title: user.title || '',
         company: user.company || '',
         location: user.location || '',
+        gender: user.gender || 'female',
         bio: user.bio || '',
         website: user.website || '',
         linkedin: user.linkedin || '',
@@ -105,6 +107,7 @@ export function Settings() {
       title: profileForm.title,
       company: user.role === 'recruiter' ? companyForm.name.trim() : profileForm.company,
       location: profileForm.location,
+      gender: profileForm.gender,
       bio: profileForm.bio,
       website: profileForm.website,
       linkedin: profileForm.linkedin,
@@ -235,6 +238,19 @@ export function Settings() {
                   />
                 </div>
               ))}
+              <div>
+                <label className="block text-[10px] uppercase font-bold text-muted-foreground mb-1.5">Gender / Demographic Group</label>
+                <select
+                  value={profileForm.gender || 'female'}
+                  onChange={e => setProfileForm({ ...profileForm, gender: e.target.value })}
+                  className="w-full px-3 py-2 rounded-lg bg-muted/20 border border-border/30 focus:outline-none focus:border-primary text-xs transition-all text-foreground cursor-pointer"
+                >
+                  <option value="female">Female</option>
+                  <option value="male">Male</option>
+                  <option value="non-binary">Non-binary / Other</option>
+                  <option value="prefer-not-to-say">Prefer not to say</option>
+                </select>
+              </div>
               <div className="sm:col-span-2">
                 <label className="block text-[10px] uppercase font-bold text-muted-foreground mb-1.5">Bio</label>
                 <textarea
