@@ -202,8 +202,8 @@ export function AuthPage() {
           </button>
 
           <div className="flex items-center gap-3 mb-16 group">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-accent flex items-center justify-center shadow-lg shadow-primary/30 transition-transform duration-300 group-hover:scale-105">
-              <Zap size={20} strokeWidth={1.75} fill="currentColor" fillOpacity={0.2} className="text-white transition-transform duration-300 group-hover:rotate-12" />
+            <div className="w-10 h-10 rounded-xl overflow-hidden shadow-lg transition-transform duration-300 group-hover:scale-105">
+              <img src="/favicon.png" alt="Jobnatics AI" className="w-full h-full object-cover" />
             </div>
             <span className="font-bold text-white text-xl" style={{ fontFamily: 'Outfit, sans-serif' }}>
               Jobnatics <span className="text-primary">AI</span>
@@ -265,8 +265,8 @@ export function AuthPage() {
         <div className="w-full max-w-md">
           {/* Mobile logo */}
           <div className="flex items-center gap-2 mb-8 lg:hidden group">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary to-accent flex items-center justify-center transition-transform duration-300 group-hover:scale-105">
-              <Zap size={16} strokeWidth={1.75} fill="currentColor" fillOpacity={0.2} className="text-white transition-transform duration-300 group-hover:rotate-12" />
+            <div className="w-8 h-8 rounded-lg overflow-hidden transition-transform duration-300 group-hover:scale-105">
+              <img src="/favicon.png" alt="Jobnatics AI" className="w-full h-full object-cover" />
             </div>
             <span className="font-bold" style={{ fontFamily: 'Outfit, sans-serif' }}>
               Jobnatics <span className="text-primary">AI</span>

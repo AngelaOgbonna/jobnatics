@@ -140,8 +140,8 @@ export function LandingPage() {
       <nav className={`fixed top-0 inset-x-0 z-50 transition-all duration-300 ${scrolled ? 'bg-background/90 backdrop-blur-xl border-b border-border shadow-lg' : ''}`}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-2 group cursor-pointer">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary to-accent flex items-center justify-center shadow-lg shadow-primary/30 transition-transform duration-300 group-hover:scale-105">
-              <Zap size={16} strokeWidth={1.75} fill="currentColor" fillOpacity={0.2} className="text-white transition-transform duration-300 group-hover:rotate-12" />
+            <div className="w-8 h-8 rounded-lg overflow-hidden transition-transform duration-300 group-hover:scale-105">
+              <img src="/favicon.png" alt="Jobnatics AI" className="w-full h-full object-cover" />
             </div>
             <span className="font-bold text-foreground" style={{ fontFamily: 'Outfit, sans-serif' }}>
               Jobnatics <span className="text-primary">AI</span>
@@ -480,8 +480,8 @@ export function LandingPage() {
         <div className="max-w-7xl mx-auto">
           <div className="flex flex-col md:flex-row items-center justify-between gap-4">
             <div className="flex items-center gap-2 group cursor-pointer">
-              <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-primary to-accent flex items-center justify-center transition-all duration-300 group-hover:shadow-md group-hover:shadow-primary/20">
-                <Zap size={14} strokeWidth={1.75} fill="currentColor" fillOpacity={0.2} className="text-white transition-transform duration-300 group-hover:scale-110 group-hover:rotate-12" />
+              <div className="w-7 h-7 rounded-lg overflow-hidden transition-all duration-300">
+                <img src="/favicon.png" alt="Jobnatics AI" className="w-full h-full object-cover" />
               </div>
               <span className="font-semibold" style={{ fontFamily: 'Outfit, sans-serif' }}>Jobnatics AI</span>
             </div>

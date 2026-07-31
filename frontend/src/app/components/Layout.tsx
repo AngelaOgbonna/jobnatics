@@ -105,8 +105,8 @@ export function Layout({ children }: { children: ReactNode }) {
       >
         {/* Logo */}
         <div className="flex items-center gap-3 px-4 py-5 border-b border-sidebar-border">
-          <div className="flex-shrink-0 w-8 h-8 rounded-lg bg-gradient-to-135 from-primary via-accent to-primary/70 flex items-center justify-center shadow-lg shadow-primary/40 group cursor-pointer ring-1 ring-white/10">
-            <Zap size={16} strokeWidth={1.75} fill="currentColor" fillOpacity={0.2} className="text-white transition-transform duration-300 group-hover:scale-110 group-hover:rotate-12" />
+          <div className="flex-shrink-0 w-8 h-8 rounded-lg overflow-hidden group cursor-pointer transition-transform duration-300 group-hover:scale-110">
+            <img src="/favicon.png" alt="Jobnatics AI" className="w-full h-full object-cover" />
           </div>
           {sidebarOpen && (
             <div className="overflow-hidden">
