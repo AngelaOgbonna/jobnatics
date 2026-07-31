@@ -16,7 +16,7 @@ export function AuthPage() {
   const [searchParams] = useSearchParams()
   const { setUser, darkMode } = useApp()
 
-  const [mode, setMode] = useState<Mode>('signup')
+  const [mode, setMode] = useState<Mode>('signin')
   const [role, setRole] = useState<Role>(searchParams.get('role') === 'recruiter' ? 'recruiter' : 'applicant')
   const [step, setStep] = useState(1)
   const [showPassword, setShowPassword] = useState(false)
@@ -148,17 +148,35 @@ export function AuthPage() {
       }
     } catch (error: any) {
       console.error(error)
-      let message = error.message || 'An error occurred during authentication.'
-      if (error.code === 'auth/invalid-credential') {
-        message = 'Invalid email or password.'
-      } else if (error.code === 'auth/email-already-in-use') {
-        message = 'This email address is already in use.'
-      } else if (error.code === 'auth/weak-password') {
-        message = 'Password should be at least 6 characters.'
-      } else if (error.code === 'auth/invalid-email') {
-        message = 'Please enter a valid email address.'
+      let message = 'Something went wrong. Please try again.'
+      switch (error.code) {
+        case 'auth/invalid-credential':
+        case 'auth/wrong-password':
+        case 'auth/user-not-found':
+          message = 'Incorrect email or password. Please check your credentials and try again.'
+          break
+        case 'auth/email-already-in-use':
+          message = 'An account with this email already exists. Try signing in instead.'
+          break
+        case 'auth/weak-password':
+          message = 'Password is too weak. Use at least 6 characters.'
+          break
+        case 'auth/invalid-email':
+          message = 'That doesn\'t look like a valid email address.'
+          break
+        case 'auth/too-many-requests':
+          message = 'Too many failed attempts. Please wait a moment before trying again.'
+          break
+        case 'auth/network-request-failed':
+          message = 'Network error. Check your connection and try again.'
+          break
+        case 'auth/user-disabled':
+          message = 'This account has been disabled. Contact support.'
+          break
+        default:
+          message = error.message || message
       }
-      toast.error(message)
+      toast.error(message, { duration: 5000 })
     } finally {
       setLoading(false)
     }
