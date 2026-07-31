@@ -12,6 +12,10 @@
     {
       "src": "/api/(.*)",
       "dest": "api/main.py"
+    },
+    {
+      "src": "/(docs|openapi.json|redoc)(/.*)?",
+      "dest": "api/main.py"
     }
   ]
 }

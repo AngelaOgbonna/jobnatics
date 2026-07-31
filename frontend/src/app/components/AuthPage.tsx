@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router'
 import { useApp, User } from '../context/AppContext'
-import { Zap, Eye, EyeOff, ArrowLeft, Sparkles, Users, CheckCircle2, ArrowRight } from 'lucide-react'
+import { Zap, Eye, EyeOff, ArrowLeft, Sparkles, Users, CheckCircle2, ArrowRight, Shield } from 'lucide-react'
 import { motion, AnimatePresence } from 'motion/react'
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword, updateProfile } from 'firebase/auth'
 import { doc, getDoc, setDoc } from 'firebase/firestore'
@@ -9,14 +9,14 @@ import { auth, db } from '../firebase'
 import { toast } from 'sonner'
 
 type Mode = 'signin' | 'signup'
-type Role = 'applicant' | 'recruiter'
+type Role = 'applicant' | 'recruiter' | 'admin'
 
 export function AuthPage() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const { setUser, darkMode } = useApp()
 
-  const [mode, setMode] = useState<Mode>('signup')
+  const [mode, setMode] = useState<Mode>('signin')
   const [role, setRole] = useState<Role>(searchParams.get('role') === 'recruiter' ? 'recruiter' : 'applicant')
   const [step, setStep] = useState(1)
   const [showPassword, setShowPassword] = useState(false)
@@ -33,10 +33,10 @@ export function AuthPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    
+
     const newErrors: Record<string, string> = {}
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-    
+
     if (mode === 'signup') {
       if (step === 1) {
         if (!form.name.trim()) {
@@ -54,16 +54,18 @@ export function AuthPage() {
         } else if (form.password.length < 6) {
           newErrors.password = 'Password must be at least 6 characters.'
         }
-        
+
         if (Object.keys(newErrors).length > 0) {
           setErrors(newErrors)
           toast.error('Please fix the validation errors before continuing.')
           return
         }
-        
+
         setErrors({})
-        setStep(2)
-        return
+        if (role !== 'admin') {
+          setStep(2)
+          return
+        }
       } else {
         if (role === 'recruiter' && !form.company.trim()) {
           newErrors.company = 'Company name is required.'
@@ -71,7 +73,7 @@ export function AuthPage() {
         if (role === 'applicant' && !form.title.trim()) {
           newErrors.title = 'Desired job title is required.'
         }
-        
+
         if (Object.keys(newErrors).length > 0) {
           setErrors(newErrors)
           toast.error('Please fill in the required field.')
@@ -87,7 +89,7 @@ export function AuthPage() {
       if (!form.password) {
         newErrors.password = 'Password is required.'
       }
-      
+
       if (Object.keys(newErrors).length > 0) {
         setErrors(newErrors)
         toast.error('Please enter your email and password correctly.')
@@ -111,10 +113,10 @@ export function AuthPage() {
           email: form.email,
           role,
           company: role === 'recruiter' ? form.company : '',
-          title: role === 'applicant' ? form.title : 'Senior Frontend Engineer',
+          title: role === 'applicant' ? form.title : (role === 'admin' ? 'System Administrator' : 'Senior Frontend Engineer'),
           avatar: role === 'recruiter'
             ? 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=64&h=64&fit=crop&crop=face'
-            : 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=64&h=64&fit=crop&crop=face',
+            : (role === 'admin' ? 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=64&h=64&fit=crop&crop=face' : 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=64&h=64&fit=crop&crop=face'),
           profileSetupCompleted: false,
         }
 
@@ -146,17 +148,35 @@ export function AuthPage() {
       }
     } catch (error: any) {
       console.error(error)
-      let message = error.message || 'An error occurred during authentication.'
-      if (error.code === 'auth/invalid-credential') {
-        message = 'Invalid email or password.'
-      } else if (error.code === 'auth/email-already-in-use') {
-        message = 'This email address is already in use.'
-      } else if (error.code === 'auth/weak-password') {
-        message = 'Password should be at least 6 characters.'
-      } else if (error.code === 'auth/invalid-email') {
-        message = 'Please enter a valid email address.'
+      let message = 'Something went wrong. Please try again.'
+      switch (error.code) {
+        case 'auth/invalid-credential':
+        case 'auth/wrong-password':
+        case 'auth/user-not-found':
+          message = 'Incorrect email or password. Please check your credentials and try again.'
+          break
+        case 'auth/email-already-in-use':
+          message = 'An account with this email already exists. Try signing in instead.'
+          break
+        case 'auth/weak-password':
+          message = 'Password is too weak. Use at least 6 characters.'
+          break
+        case 'auth/invalid-email':
+          message = 'That doesn\'t look like a valid email address.'
+          break
+        case 'auth/too-many-requests':
+          message = 'Too many failed attempts. Please wait a moment before trying again.'
+          break
+        case 'auth/network-request-failed':
+          message = 'Network error. Check your connection and try again.'
+          break
+        case 'auth/user-disabled':
+          message = 'This account has been disabled. Contact support.'
+          break
+        default:
+          message = error.message || message
       }
-      toast.error(message)
+      toast.error(message, { duration: 5000 })
     } finally {
       setLoading(false)
     }
@@ -182,8 +202,8 @@ export function AuthPage() {
           </button>
 
           <div className="flex items-center gap-3 mb-16 group">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-accent flex items-center justify-center shadow-lg shadow-primary/30 transition-transform duration-300 group-hover:scale-105">
-              <Zap size={20} strokeWidth={1.75} fill="currentColor" fillOpacity={0.2} className="text-white transition-transform duration-300 group-hover:rotate-12" />
+            <div className="w-10 h-10 rounded-xl overflow-hidden shadow-lg transition-transform duration-300 group-hover:scale-105">
+              <img src="/favicon.png" alt="Jobnatics AI" className="w-full h-full object-cover" />
             </div>
             <span className="font-bold text-white text-xl" style={{ fontFamily: 'Outfit, sans-serif' }}>
               Jobnatics <span className="text-primary">AI</span>
@@ -245,8 +265,8 @@ export function AuthPage() {
         <div className="w-full max-w-md">
           {/* Mobile logo */}
           <div className="flex items-center gap-2 mb-8 lg:hidden group">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary to-accent flex items-center justify-center transition-transform duration-300 group-hover:scale-105">
-              <Zap size={16} strokeWidth={1.75} fill="currentColor" fillOpacity={0.2} className="text-white transition-transform duration-300 group-hover:rotate-12" />
+            <div className="w-8 h-8 rounded-lg overflow-hidden transition-transform duration-300 group-hover:scale-105">
+              <img src="/favicon.png" alt="Jobnatics AI" className="w-full h-full object-cover" />
             </div>
             <span className="font-bold" style={{ fontFamily: 'Outfit, sans-serif' }}>
               Jobnatics <span className="text-primary">AI</span>
@@ -259,9 +279,8 @@ export function AuthPage() {
               <button
                 key={m}
                 onClick={() => { setMode(m); setStep(1) }}
-                className={`flex-1 py-2 text-sm font-medium rounded-lg transition-all duration-200 ${
-                  mode === m ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
-                }`}
+                className={`flex-1 py-2 text-sm font-medium rounded-lg transition-all duration-200 ${mode === m ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
+                  }`}
               >
                 {m === 'signin' ? 'Sign In' : 'Sign Up'}
               </button>
@@ -272,30 +291,39 @@ export function AuthPage() {
           {mode === 'signup' && step === 1 && (
             <div className="mb-6">
               <p className="text-sm text-muted-foreground mb-3">I am a...</p>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-3 gap-3">
                 <button
                   onClick={() => setRole('applicant')}
-                  className={`flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all duration-200 group ${
-                    role === 'applicant'
+                  className={`flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all duration-200 group ${role === 'applicant'
                       ? 'border-primary bg-primary/10 text-primary'
                       : 'border-border text-muted-foreground hover:border-primary/30'
-                  }`}
+                    }`}
                 >
                   <Sparkles size={20} strokeWidth={1.75} fill={role === 'applicant' ? 'currentColor' : 'none'} fillOpacity={0.15} className={`transition-transform duration-300 ${role === 'applicant' ? 'animate-pulse' : 'group-hover:scale-105'}`} />
                   <span className="text-sm font-medium">Job Seeker</span>
-                  <span className="text-xs opacity-70">Find opportunities</span>
+                  <span className="text-xs opacity-70 text-center">Find opportunities</span>
                 </button>
                 <button
                   onClick={() => setRole('recruiter')}
-                  className={`flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all duration-200 group ${
-                    role === 'recruiter'
+                  className={`flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all duration-200 group ${role === 'recruiter'
                       ? 'border-primary bg-primary/10 text-primary'
                       : 'border-border text-muted-foreground hover:border-primary/30'
-                  }`}
+                    }`}
                 >
                   <Users size={20} strokeWidth={1.75} fill={role === 'recruiter' ? 'currentColor' : 'none'} fillOpacity={0.15} className={`transition-transform duration-300 ${role === 'recruiter' ? 'scale-105' : 'group-hover:scale-105'}`} />
                   <span className="text-sm font-medium">Recruiter</span>
-                  <span className="text-xs opacity-70">Hire talent</span>
+                  <span className="text-xs opacity-70 text-center">Hire talent</span>
+                </button>
+                <button
+                  onClick={() => setRole('admin')}
+                  className={`flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all duration-200 group ${role === 'admin'
+                      ? 'border-primary bg-primary/10 text-primary'
+                      : 'border-border text-muted-foreground hover:border-primary/30'
+                    }`}
+                >
+                  <Shield size={20} strokeWidth={1.75} fill={role === 'admin' ? 'currentColor' : 'none'} fillOpacity={0.15} className={`transition-transform duration-300 ${role === 'admin' ? 'scale-105' : 'group-hover:scale-105'}`} />
+                  <span className="text-sm font-medium">Admin</span>
+                  <span className="text-xs opacity-70 text-center">System config</span>
                 </button>
               </div>
             </div>
@@ -324,11 +352,10 @@ export function AuthPage() {
                           setForm({ ...form, name: e.target.value })
                           if (errors.name) setErrors({ ...errors, name: '' })
                         }}
-                        className={`w-full px-4 py-3 rounded-xl bg-muted border focus:outline-none focus:ring-2 transition-all placeholder:text-muted-foreground ${
-                          errors.name 
-                            ? 'border-red-500/50 focus:border-red-500 focus:ring-red-500/20' 
+                        className={`w-full px-4 py-3 rounded-xl bg-muted border focus:outline-none focus:ring-2 transition-all placeholder:text-muted-foreground ${errors.name
+                            ? 'border-red-500/50 focus:border-red-500 focus:ring-red-500/20'
                             : 'border-border focus:border-primary focus:ring-primary/20'
-                        }`}
+                          }`}
                       />
                       {errors.name && (
                         <p className="text-[11px] text-red-400 mt-1 font-medium">{errors.name}</p>
@@ -345,11 +372,10 @@ export function AuthPage() {
                         setForm({ ...form, email: e.target.value })
                         if (errors.email) setErrors({ ...errors, email: '' })
                       }}
-                      className={`w-full px-4 py-3 rounded-xl bg-muted border focus:outline-none focus:ring-2 transition-all placeholder:text-muted-foreground ${
-                        errors.email 
-                          ? 'border-red-500/50 focus:border-red-500 focus:ring-red-500/20' 
+                      className={`w-full px-4 py-3 rounded-xl bg-muted border focus:outline-none focus:ring-2 transition-all placeholder:text-muted-foreground ${errors.email
+                          ? 'border-red-500/50 focus:border-red-500 focus:ring-red-500/20'
                           : 'border-border focus:border-primary focus:ring-primary/20'
-                      }`}
+                        }`}
                     />
                     {errors.email && (
                       <p className="text-[11px] text-red-400 mt-1 font-medium">{errors.email}</p>
@@ -366,11 +392,10 @@ export function AuthPage() {
                           setForm({ ...form, password: e.target.value })
                           if (errors.password) setErrors({ ...errors, password: '' })
                         }}
-                        className={`w-full px-4 py-3 pr-12 rounded-xl bg-muted border focus:outline-none focus:ring-2 transition-all placeholder:text-muted-foreground ${
-                          errors.password 
-                            ? 'border-red-500/50 focus:border-red-500 focus:ring-red-500/20' 
+                        className={`w-full px-4 py-3 pr-12 rounded-xl bg-muted border focus:outline-none focus:ring-2 transition-all placeholder:text-muted-foreground ${errors.password
+                            ? 'border-red-500/50 focus:border-red-500 focus:ring-red-500/20'
                             : 'border-border focus:border-primary focus:ring-primary/20'
-                        }`}
+                          }`}
                       />
                       <button
                         type="button"
@@ -410,11 +435,10 @@ export function AuthPage() {
                           if (errors.title) setErrors({ ...errors, title: '' })
                         }
                       }}
-                      className={`w-full px-4 py-3 rounded-xl bg-muted border focus:outline-none focus:ring-2 transition-all placeholder:text-muted-foreground ${
-                        (role === 'recruiter' ? errors.company : errors.title)
-                          ? 'border-red-500/50 focus:border-red-500 focus:ring-red-500/20' 
+                      className={`w-full px-4 py-3 rounded-xl bg-muted border focus:outline-none focus:ring-2 transition-all placeholder:text-muted-foreground ${(role === 'recruiter' ? errors.company : errors.title)
+                          ? 'border-red-500/50 focus:border-red-500 focus:ring-red-500/20'
                           : 'border-border focus:border-primary focus:ring-primary/20'
-                      }`}
+                        }`}
                     />
                     {role === 'recruiter' ? (
                       errors.company && <p className="text-[11px] text-red-400 mt-1 font-medium">{errors.company}</p>

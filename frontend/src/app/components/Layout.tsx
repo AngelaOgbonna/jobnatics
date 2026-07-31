@@ -6,7 +6,7 @@ import { auth } from '../firebase'
 import {
   LayoutDashboard, Briefcase, FileText, Sparkles, MessageSquare,
   Bell, Bookmark, UserCircle, Settings, LogOut, Users, BarChart3,
-  Moon, Sun, Menu, X, ChevronRight, Search, Zap, Building2,
+  Moon, Sun, Menu, X, ChevronRight, Search, Zap, Building2, Shield
 } from 'lucide-react'
 
 interface NavItem {
@@ -36,6 +36,10 @@ const recruiterNav: NavItem[] = [
   { label: 'Company', icon: Building2, path: '/company/stripe' },
 ]
 
+const adminNav: NavItem[] = [
+  { label: 'System Config', icon: Shield, path: '/app/admin' },
+]
+
 export function Layout({ children }: { children: ReactNode }) {
   const { user, setUser, darkMode, toggleDarkMode, sidebarOpen, setSidebarOpen, companies, loadingData } = useApp()
   const navigate = useNavigate()
@@ -56,8 +60,21 @@ export function Layout({ children }: { children: ReactNode }) {
     return item
   })
 
-  const nav = user?.role === 'recruiter' ? dynamicRecruiterNav : applicantNav
+  const nav = user?.role === 'admin' 
+    ? adminNav 
+    : (user?.role === 'recruiter' ? dynamicRecruiterNav : applicantNav)
 
+  // Redirect logic
+  useEffect(() => {
+    if (!loadingData && user) {
+      if (user.role === 'admin' && location.pathname !== '/app/admin') {
+         // let them browse jobs if they want, but probably their default route is /app/admin
+         if (location.pathname === '/' || location.pathname === '/app/applicant' || location.pathname === '/app/recruiter') {
+             navigate('/app/admin')
+         }
+      }
+    }
+  }, [user, loadingData, location.pathname, navigate])
   useEffect(() => {
     if (user && !loadingData) {
       const needsCompanySetup = user.role === 'recruiter' && !user.company && !companies.some(c => c.postedBy === user.id)
@@ -84,12 +101,12 @@ export function Layout({ children }: { children: ReactNode }) {
       <aside
         className={`fixed inset-y-0 left-0 z-50 flex flex-col transition-all duration-300 ease-in-out
           ${sidebarOpen ? 'w-64' : 'w-0 overflow-hidden lg:w-16'}
-          bg-sidebar border-r border-sidebar-border`}
+          bg-sidebar/95 backdrop-blur-2xl border-r border-sidebar-border shadow-2xl shadow-black/20`}
       >
         {/* Logo */}
         <div className="flex items-center gap-3 px-4 py-5 border-b border-sidebar-border">
-          <div className="flex-shrink-0 w-8 h-8 rounded-lg bg-gradient-to-br from-primary to-accent flex items-center justify-center shadow-lg shadow-primary/30 group cursor-pointer">
-            <Zap size={16} strokeWidth={1.75} fill="currentColor" fillOpacity={0.2} className="text-white transition-transform duration-300 group-hover:scale-110 group-hover:rotate-12" />
+          <div className="flex-shrink-0 w-8 h-8 rounded-lg overflow-hidden group cursor-pointer transition-transform duration-300 group-hover:scale-110">
+            <img src="/favicon.png" alt="Jobnatics AI" className="w-full h-full object-cover" />
           </div>
           {sidebarOpen && (
             <div className="overflow-hidden">
@@ -203,7 +220,7 @@ export function Layout({ children }: { children: ReactNode }) {
       {/* Main content */}
       <div className={`flex-1 flex flex-col min-w-0 transition-all duration-300 ${sidebarOpen ? 'lg:ml-64' : 'lg:ml-16'}`}>
         {/* Header */}
-        <header className="sticky top-0 z-40 flex items-center gap-4 px-4 py-3 border-b border-border bg-background/80 backdrop-blur-xl">
+        <header className="sticky top-0 z-40 flex items-center gap-4 px-4 py-3 border-b border-border bg-background/70 backdrop-blur-xl shadow-sm">
           <button
             onClick={() => setSidebarOpen(!sidebarOpen)}
             className="flex-shrink-0 w-9 h-9 rounded-lg flex items-center justify-center text-muted-foreground hover:bg-muted hover:text-foreground transition-colors group"

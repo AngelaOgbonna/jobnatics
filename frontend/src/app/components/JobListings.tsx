@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react'
+import { useState, useMemo, useEffect, useRef } from 'react'
 import { useNavigate, useSearchParams } from 'react-router'
 import { useApp } from '../context/AppContext'
 import { toast } from 'sonner'
@@ -6,9 +6,9 @@ import { Layout } from './Layout'
 import {
   Search, Filter, MapPin, DollarSign, Clock, Sparkles, Briefcase,
   Bookmark, ArrowUpRight, SlidersHorizontal, ChevronDown, X,
-  Star, Zap, Globe, Building2,
+  Star, Zap, Globe, Building2, FileText, Send,
 } from 'lucide-react'
-import { motion } from 'motion/react'
+import { motion, AnimatePresence } from 'motion/react'
 import { calculateJobMatchScore } from '../data/mockData'
 const categories = ['All', 'Engineering', 'Design', 'Product', 'AI/ML', 'Data Science', 'DevOps', 'Security', 'Research', 'Mobile']
 const remoteOptions = ['All', 'Remote', 'Hybrid', 'On-site']
@@ -39,6 +39,12 @@ export function JobListings() {
   const [activeLevel, setActiveLevel] = useState('All')
   const [sortBy, setSortBy] = useState<'match' | 'date' | 'salary'>('match')
   const [showFilters, setShowFilters] = useState(false)
+
+  // Cover letter modal state
+  const [applyModalJob, setApplyModalJob] = useState<any | null>(null)
+  const [coverLetter, setCoverLetter] = useState('')
+  const [applyLoading, setApplyLoading] = useState(false)
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
 
   const [savedJobs, setSavedJobs] = useState<string[]>(() => {
     try {
@@ -114,42 +120,53 @@ export function JobListings() {
     })
   }
 
-  const handleApply = async (id: string, e: React.MouseEvent) => {
+  const openApplyModal = (id: string, e: React.MouseEvent) => {
     e.stopPropagation()
-    if (!user) {
-      navigate('/auth')
+    if (!user) { navigate('/auth'); return }
+    if (user.role === 'recruiter') return
+    const job = jobsWithMatches.find(j => j.id === id)
+    if (!job || appliedJobs.includes(id)) return
+    setCoverLetter('')
+    setApplyModalJob(job)
+    setTimeout(() => textareaRef.current?.focus(), 50)
+  }
+
+  const handleApply = async () => {
+    if (!applyModalJob || !user) return
+    if (!coverLetter.trim()) {
+      toast.error('Please write a cover letter before submitting.')
       return
     }
-    if (user.role === 'recruiter') return
 
-    const job = jobsWithMatches.find(j => j.id === id)
-    if (!job) return
-
+    setApplyLoading(true)
     const appDoc = {
-      id: `${job.id}_${user.id}`,
+      id: `${applyModalJob.id}_${user.id}`,
       userId: user.id,
-      jobId: job.id,
-      job: job.title,
-      company: job.company,
-      logo: job.companyLogo || '💼',
+      jobId: applyModalJob.id,
+      job: applyModalJob.title,
+      company: applyModalJob.company,
+      logo: applyModalJob.companyLogo || '💼',
       date: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-      match: job.match,
+      match: applyModalJob.match,
       stage: 'Applied',
-      status: 'applied'
+      status: 'applied',
+      coverLetter: coverLetter.trim(),
     }
-
     try {
       await addApplicantApplication(appDoc)
       setAppliedJobs(prev => {
-        if (prev.includes(id)) return prev
-        const updated = [...prev, id]
+        if (prev.includes(applyModalJob.id)) return prev
+        const updated = [...prev, applyModalJob.id]
         localStorage.setItem(`jobnatics_applied_jobs_${user.id}`, JSON.stringify(updated))
         return updated
       })
-      toast.success(`Successfully applied to ${job.title}!`)
+      toast.success(`Application submitted to ${applyModalJob.company}!`)
+      setApplyModalJob(null)
     } catch (err) {
       console.error('Error applying to job:', err)
-      toast.error('Failed to submit application.')
+      toast.error('Failed to submit application. Please try again.')
+    } finally {
+      setApplyLoading(false)
     }
   }
 
@@ -393,14 +410,14 @@ export function JobListings() {
                 ) : (
                   <>
                     <button
-                      onClick={e => handleApply(job.id, e)}
+                      onClick={e => openApplyModal(job.id, e)}
                       className={`flex-1 py-2 rounded-lg text-xs font-medium transition-all duration-200 group/apply ${
                         appliedJobs.includes(job.id)
                           ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30'
                           : 'bg-primary text-white hover:bg-primary/90 shadow-sm shadow-primary/20 hover:scale-[1.01]'
                       }`}
                     >
-                      {appliedJobs.includes(job.id) ? 'Applied' : user ? '⚡ AI Apply' : 'Apply Now'}
+                      {appliedJobs.includes(job.id) ? 'Applied ✓' : user ? '⚡ Quick Apply' : 'Apply Now'}
                     </button>
                     <button
                       onClick={e => toggleSave(job.id, e)}
@@ -455,6 +472,97 @@ export function JobListings() {
           </div>
         )}
       </div>
+
+      {/* Cover Letter Modal */}
+      <AnimatePresence>
+        {applyModalJob && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+            onClick={() => !applyLoading && setApplyModalJob(null)}
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              transition={{ type: 'spring', stiffness: 300, damping: 28 }}
+              className="w-full max-w-lg bg-card border border-border rounded-2xl shadow-2xl overflow-hidden"
+              onClick={e => e.stopPropagation()}
+            >
+              {/* Modal header */}
+              <div className="flex items-center justify-between px-6 py-4 border-b border-border">
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center text-xl">
+                    {['💳','🤖','🎨','₿','✈️','▲','🍎','🎬','☁️','🔍','🛍️','📐'][parseInt(applyModalJob.id) - 1] || '💼'}
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold leading-tight">{applyModalJob.title}</p>
+                    <p className="text-xs text-muted-foreground">{applyModalJob.company}</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => !applyLoading && setApplyModalJob(null)}
+                  className="w-8 h-8 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                >
+                  <X size={16} strokeWidth={1.75} />
+                </button>
+              </div>
+
+              {/* Modal body */}
+              <div className="px-6 py-5 space-y-4">
+                <div>
+                  <div className="flex items-center gap-2 mb-2">
+                    <FileText size={14} strokeWidth={1.75} className="text-primary" />
+                    <label className="text-sm font-medium">Cover Letter</label>
+                    <span className="text-xs text-muted-foreground ml-auto">{coverLetter.length}/500</span>
+                  </div>
+                  <textarea
+                    ref={textareaRef}
+                    value={coverLetter}
+                    onChange={e => setCoverLetter(e.target.value.slice(0, 500))}
+                    placeholder={`Tell ${applyModalJob.company} why you're excited about this role and what makes you the right fit…`}
+                    rows={6}
+                    className="w-full rounded-xl bg-muted/40 border border-border focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/15 text-sm p-3.5 resize-none placeholder:text-muted-foreground/50 transition-all"
+                  />
+                  {coverLetter.trim().length === 0 && (
+                    <p className="text-[11px] text-muted-foreground mt-1.5">A cover letter is required to submit your application.</p>
+                  )}
+                </div>
+              </div>
+
+              {/* Modal footer */}
+              <div className="flex items-center gap-3 px-6 py-4 border-t border-border bg-muted/20">
+                <button
+                  onClick={() => !applyLoading && setApplyModalJob(null)}
+                  disabled={applyLoading}
+                  className="flex-1 py-2.5 rounded-xl border border-border text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted transition-all disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleApply}
+                  disabled={applyLoading || !coverLetter.trim()}
+                  className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-semibold hover:opacity-90 transition-all disabled:opacity-50 shadow-lg shadow-primary/20"
+                >
+                  {applyLoading ? (
+                    <>
+                      <div className="w-4 h-4 rounded-full border-2 border-white/30 border-t-white animate-spin" />
+                      Submitting…
+                    </>
+                  ) : (
+                    <>
+                      <Send size={14} strokeWidth={1.75} />
+                      Submit Application
+                    </>
+                  )}
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </Layout>
   )
 }
