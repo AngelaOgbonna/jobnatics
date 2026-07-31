@@ -190,8 +190,25 @@ export function RecruiterDashboard() {
     setShowFairnessModal(true)
 
     try {
+      const candidates = allUsers.filter(u => u.role !== 'recruiter' && u.name)
       const payload = {
         job_description: customJobDescription,
+        applicants: candidates.map(user => {
+          const bio = user.bio || ''
+          const skills = Array.isArray(user.skills) ? user.skills.join(', ') : (user.skills || '')
+          const experience = Array.isArray(user.experience) ? user.experience.map((e: any) => `${e.title} at ${e.company} ${e.description}`).join(' ') : ''
+          const resume_text = `${bio} ${skills} ${experience}`.trim()
+          
+          // Generate a deterministic pseudo-random demographic group (0 or 1) based on user ID
+          // In a real scenario, this would come from the database (e.g., self-identified info)
+          const demographic_group = user.id ? user.id.charCodeAt(0) % 2 : 0
+          
+          return {
+            applicant_id: user.id,
+            resume_text: resume_text || user.name,
+            demographic_group
+          }
+        })
       }
       const res = await fetch(`${BACKEND_URL}/api/match-job`, {
         method: 'POST',

@@ -342,8 +342,14 @@ class BatchPayload(BaseModel):
     candidates: List[BatchCandidate]
 
 
+class ApplicantMatchItem(BaseModel):
+    applicant_id: str
+    resume_text: str
+    demographic_group: int = 0
+
 class JobPayload(BaseModel):
     job_description: str
+    applicants: Optional[List[ApplicantMatchItem]] = None
 
 
 # ── Endpoint 1: Health check ───────────────────────────────────────────────────
@@ -661,15 +667,32 @@ def match_job(payload: JobPayload):
         # Compute TF-IDF vector for the job description
         job_tfidf = resumes_vectorizer.transform([clean_job_desc])
         
-        # Calculate cosine similarity with all resumes in the pool
-        scores = cosine_similarity(job_tfidf, resumes_tfidf_matrix).flatten()
-        # Clean potential NaN values from cosine similarity division by zero
-        scores = np.nan_to_num(scores, nan=0.0)
-        
-        # Build results DataFrame
-        df_results = df_resumes_pool.copy()
-        df_results['score'] = scores
-        df_results['base_outcome'] = (df_results['score'] >= BASE_THRESHOLD).astype(int)
+        if payload.applicants and len(payload.applicants) > 0:
+            df_results = pd.DataFrame([
+                {
+                    "id": a.applicant_id,
+                    "resume": a.resume_text,
+                    "demographic_group": a.demographic_group
+                } for a in payload.applicants
+            ])
+            clean_resumes = [preprocess_text(r) for r in df_results['resume']]
+            # Fill empty resumes with empty strings to avoid vectorizer errors
+            clean_resumes = [r if r else "" for r in clean_resumes]
+            app_tfidf = resumes_vectorizer.transform(clean_resumes)
+            scores = cosine_similarity(job_tfidf, app_tfidf).flatten()
+            scores = np.nan_to_num(scores, nan=0.0)
+            df_results['score'] = scores
+            df_results['base_outcome'] = (df_results['score'] >= BASE_THRESHOLD).astype(int)
+        else:
+            # Calculate cosine similarity with all resumes in the pool
+            scores = cosine_similarity(job_tfidf, resumes_tfidf_matrix).flatten()
+            # Clean potential NaN values from cosine similarity division by zero
+            scores = np.nan_to_num(scores, nan=0.0)
+            
+            # Build results DataFrame
+            df_results = df_resumes_pool.copy()
+            df_results['score'] = scores
+            df_results['base_outcome'] = (df_results['score'] >= BASE_THRESHOLD).astype(int)
 
         config = get_fairness_config()
         # Evaluate fairness on the top N highest scoring candidates to see cohort-level parity
@@ -774,8 +797,8 @@ def match_job(payload: JobPayload):
             "candidates": [
                 {
                     "rank": i + 1,
-                    "category": str(row['Category']) if pd.notna(row['Category']) else "",
-                    "resume_snippet": (str(row['Resume'])[:200].replace("\n", " ").strip() + "...") if pd.notna(row['Resume']) else "",
+                    "category": str(row.get('Category', '')) if pd.notna(row.get('Category')) else "",
+                    "resume_snippet": (str(row.get('Resume', row.get('resume', '')))[:200].replace("\n", " ").strip() + "...") if pd.notna(row.get('Resume', row.get('resume'))) else "",
                     "demographic_group": int(row['demographic_group']),
                     "similarity_score": round(float(row['score']), 4),
                     "shortlisted_base": bool(row['base_outcome']),
@@ -792,10 +815,7 @@ def match_job(payload: JobPayload):
 
 # ── Endpoint 6: Match specific applicants against a job description ────────────
 
-class ApplicantMatchItem(BaseModel):
-    applicant_id: str
-    resume_text: str
-    demographic_group: int = 0
+
 
 class ApplicantMatchPayload(BaseModel):
     job_description: str
