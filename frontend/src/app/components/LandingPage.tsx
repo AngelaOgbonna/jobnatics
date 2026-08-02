@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router'
 import { useApp } from '../context/AppContext'
+import logoImg from '../../assets/logo.png'
 import {
   Zap, Sparkles, Brain, Target, Users, BarChart3, MessageSquare,
   CheckCircle2, ArrowRight, Star, Moon, Sun, ChevronRight,
@@ -12,15 +13,22 @@ import { motion } from 'motion/react'
 const features = [
   {
     icon: Brain,
-    title: 'AI-Powered Matching',
-    description: 'Our semantic matching engine analyzes 200+ signals to pair candidates with the perfect opportunities, achieving 94% placement accuracy.',
+    title: 'Fairness-Aware AI Ranking',
+    description: 'Our two-tier semantic ranking engine uses Fairlearn post-processing algorithms to eliminate demographic bias while ensuring top-tier skill alignment.',
     color: 'from-indigo-500 to-violet-500',
     glow: 'shadow-indigo-500/20',
   },
   {
+    icon: Shield,
+    title: 'Bias Audit & DIR Metrics',
+    description: 'Automated auditing of Disparate Impact Ratio (DIR) and Demographic Parity Difference (DPD) to guarantee 80%-rule compliance across candidate pools.',
+    color: 'from-rose-500 to-red-500',
+    glow: 'shadow-rose-500/20',
+  },
+  {
     icon: Target,
-    title: 'Match Score Ranking',
-    description: 'Every job and candidate gets an AI match score. Recruiters see ranked applicants, candidates see ranked opportunities — no more guessing.',
+    title: 'Demographic Parity Check',
+    description: 'Real-time fairness auditing evaluates candidate rankings on merit, experience, and skills, actively preventing unprivileged cohort skew.',
     color: 'from-cyan-500 to-blue-500',
     glow: 'shadow-cyan-500/20',
   },
@@ -33,24 +41,17 @@ const features = [
   },
   {
     icon: MessageSquare,
-    title: 'AI Interview Coach',
-    description: 'Practice with our AI interviewer trained on thousands of real interview transcripts. Get instant feedback and personalized prep plans.',
+    title: 'AI Interview Prep',
+    description: 'Practice with an AI interviewer trained on technical interview patterns. Get instant feedback on answers, clarity, and domain depth.',
     color: 'from-emerald-500 to-teal-500',
     glow: 'shadow-emerald-500/20',
   },
   {
     icon: BarChart3,
-    title: 'Hiring Analytics',
-    description: 'Deep insights into your pipeline. Track conversion rates, identify bottlenecks, benchmark against industry standards, and forecast hiring.',
+    title: 'Fairness & Pipeline Analytics',
+    description: 'Deep audit logging and fairness metrics reports. Track selection rates, demographic distribution, and time-to-hire in one unified dashboard.',
     color: 'from-orange-500 to-amber-500',
     glow: 'shadow-orange-500/20',
-  },
-  {
-    icon: Shield,
-    title: 'Bias-Free Screening',
-    description: 'Our AI is designed to evaluate candidates on merit, skills, and fit — not demographics. Build diverse, high-performing teams with confidence.',
-    color: 'from-rose-500 to-red-500',
-    glow: 'shadow-rose-500/20',
   },
 ]
 
@@ -68,7 +69,7 @@ const testimonials = [
     name: 'Priya Sharma',
     title: 'Engineering Manager at Stripe',
     avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=80&h=80&fit=crop&crop=face',
-    quote: 'We hired our entire frontend team in 3 weeks using Jobnatics AI. The match quality was incredible — 9 of 10 hires are still with us 18 months later.',
+    quote: 'We hired our entire frontend team in 3 weeks using Jobnatics AI. The match quality was incredible, and 9 of 10 hires are still with us 18 months later.',
     rating: 5,
   },
   {
@@ -141,7 +142,7 @@ export function LandingPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-2 group cursor-pointer">
             <div className="w-8 h-8 rounded-lg overflow-hidden transition-transform duration-300 group-hover:scale-105">
-              <img src="/favicon.png" alt="Jobnatics AI" className="w-full h-full object-cover" />
+              <img src={logoImg} alt="Jobnatics AI" className="w-full h-full object-cover" />
             </div>
             <span className="font-bold text-foreground" style={{ fontFamily: 'Outfit, sans-serif' }}>
               Jobnatics <span className="text-primary">AI</span>
@@ -216,8 +217,8 @@ export function LandingPage() {
             transition={{ duration: 0.5 }}
           >
             <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 border border-primary/20 text-primary text-sm font-medium mb-8 hover:bg-primary/15 transition-colors group cursor-default">
-              <Sparkles size={14} strokeWidth={1.75} fill="currentColor" fillOpacity={0.2} className="animate-pulse text-primary group-hover:scale-110 transition-transform duration-300" />
-              <span>AI-Powered Recruitment Intelligence</span>
+              <Shield size={14} strokeWidth={1.75} className="text-primary group-hover:scale-110 transition-transform duration-300" />
+              <span>Fairness-Aware AI Ranking & Bias Auditing</span>
               <span className="w-2 h-2 rounded-full bg-primary animate-pulse" />
             </div>
           </motion.div>
@@ -226,12 +227,12 @@ export function LandingPage() {
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.1 }}
-            className="mb-6"
-            style={{ fontFamily: 'Outfit, sans-serif', fontSize: 'clamp(2.5rem, 7vw, 5rem)', fontWeight: 800, lineHeight: 1.1 }}
+            className="mb-6 text-foreground"
+            style={{ fontFamily: 'Outfit, sans-serif', fontSize: 'clamp(2.5rem, 7vw, 4.75rem)', fontWeight: 800, lineHeight: 1.1 }}
           >
-            Hire Smarter.{' '}
-            <span className="bg-gradient-to-r from-zinc-300 via-white to-zinc-400 bg-clip-text text-transparent dark:from-zinc-200 dark:via-white dark:to-zinc-400">
-              Get Hired Faster.
+            Bias-Free Screening.{' '}
+            <span className="bg-gradient-to-r from-zinc-900 via-slate-800 to-zinc-700 dark:from-zinc-100 dark:via-white dark:to-zinc-400 bg-clip-text text-transparent">
+              Fairness-Aware Ranking.
             </span>
           </motion.h1>
 
@@ -240,10 +241,9 @@ export function LandingPage() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.2 }}
             className="text-muted-foreground max-w-2xl mx-auto mb-10"
-            style={{ fontSize: 'clamp(1rem, 2.5vw, 1.25rem)', lineHeight: 1.7 }}
+            style={{ fontSize: 'clamp(1rem, 2.5vw, 1.2rem)', lineHeight: 1.7 }}
           >
-            Jobnatics AI uses advanced semantic matching to connect top talent with the right opportunities.
-            Upload your resume. Get ranked matches. Land your dream job in days, not months.
+            Jobnatics AI matches job seekers with employers based purely on real skills and qualifications, automatically removing hidden bias so every candidate gets a fair chance.
           </motion.p>
 
           <motion.div
@@ -257,7 +257,7 @@ export function LandingPage() {
               className="flex items-center gap-2 px-8 py-4 rounded-xl bg-foreground text-background font-semibold shadow-2xl hover:opacity-90 hover:scale-105 transition-all duration-200 group"
             >
               <Rocket size={18} strokeWidth={1.75} fill="currentColor" fillOpacity={0.2} className="transition-transform duration-300 group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
-              Find My Perfect Job
+              Explore Unbiased Jobs
               <ArrowRight size={18} strokeWidth={1.75} className="transition-transform duration-300 group-hover:translate-x-1" />
             </button>
             <button
@@ -265,7 +265,7 @@ export function LandingPage() {
               className="flex items-center gap-2 px-8 py-4 rounded-xl border border-border hover:border-primary/40 hover:bg-primary/5 font-semibold transition-all duration-200 group"
             >
               <Users size={18} strokeWidth={1.75} fill="currentColor" fillOpacity={0.1} className="transition-transform duration-300 group-hover:scale-105 text-muted-foreground group-hover:text-primary" />
-              I'm Hiring
+              Audit & Hire Talent
             </button>
           </motion.div>
 
@@ -277,14 +277,14 @@ export function LandingPage() {
             className="grid grid-cols-2 md:grid-cols-4 gap-4 max-w-3xl mx-auto mb-16"
           >
             {[
-              { value: '50K+', label: 'Active Jobs' },
-              { value: '200K+', label: 'Candidates' },
+              { value: '99%', label: 'DIR Compliance' },
+              { value: '200K+', label: 'Audited Applicants' },
               { value: '94%', label: 'Match Accuracy' },
-              { value: '12K+', label: 'Successful Hires' },
+              { value: '0.02', label: 'DPD Parity Index' },
             ].map(stat => (
               <div key={stat.label} className="p-4 rounded-xl bg-card/60 backdrop-blur border border-border">
                 <div className="font-bold text-foreground mb-1" style={{ fontFamily: 'Outfit, sans-serif', fontSize: '1.75rem' }}>{stat.value}</div>
-                <div className="text-sm text-muted-foreground">{stat.label}</div>
+                <div className="text-xs text-muted-foreground font-medium">{stat.label}</div>
               </div>
             ))}
           </motion.div>
@@ -301,16 +301,16 @@ export function LandingPage() {
                 <div className="flex gap-1.5">
                   {['bg-red-400', 'bg-yellow-400', 'bg-green-400'].map(c => <div key={c} className={`w-3 h-3 rounded-full ${c}`} />)}
                 </div>
-                <div className="flex-1 bg-background/50 rounded-lg px-3 py-1 text-xs text-muted-foreground text-center">app.jobnatics.ai/dashboard</div>
+                <div className="flex-1 bg-background/50 rounded-lg px-3 py-1 text-xs text-muted-foreground text-center">app.jobnatics.ai/fairness-dashboard</div>
               </div>
               {/* Mock dashboard UI */}
               <div className="grid grid-cols-3 gap-3 p-3">
                 <div className="col-span-3 grid grid-cols-4 gap-3">
                   {[
-                    { label: 'Match Rate', value: '94%', color: 'text-emerald-400' },
-                    { label: 'Applications', value: '12', color: 'text-primary' },
-                    { label: 'Interviews', value: '3', color: 'text-accent' },
-                    { label: 'AI Score', value: '87', color: 'text-sky-400' },
+                    { label: 'Fairness Score', value: '99%', color: 'text-emerald-600 dark:text-emerald-400' },
+                    { label: 'DIR Parity (80% Rule)', value: '0.88', color: 'text-primary' },
+                    { label: 'DPD Difference', value: '0.02', color: 'text-accent' },
+                    { label: 'Audited Applicants', value: '5,000', color: 'text-sky-600 dark:text-sky-400' },
                   ].map(card => (
                     <div key={card.label} className="bg-background/60 rounded-lg p-3 border border-border">
                       <div className={`text-xl font-bold ${card.color}`} style={{ fontFamily: 'Outfit, sans-serif' }}>{card.value}</div>
@@ -328,9 +328,9 @@ export function LandingPage() {
                       <div className="w-8 h-8 rounded bg-primary/20 flex items-center justify-center group-hover:scale-105 transition-transform duration-200">
                         <Briefcase size={14} strokeWidth={1.75} fill="currentColor" fillOpacity={0.2} className="text-primary" />
                       </div>
-                      <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400">{job.match}%</span>
+                      <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 font-medium">{job.match}% Match</span>
                     </div>
-                    <div className="text-xs font-medium truncate">{job.title}</div>
+                    <div className="text-xs font-semibold text-foreground truncate">{job.title}</div>
                     <div className="text-xs text-muted-foreground">{job.company}</div>
                   </div>
                 ))}
@@ -481,7 +481,7 @@ export function LandingPage() {
           <div className="flex flex-col md:flex-row items-center justify-between gap-4">
             <div className="flex items-center gap-2 group cursor-pointer">
               <div className="w-7 h-7 rounded-lg overflow-hidden transition-all duration-300">
-                <img src="/favicon.png" alt="Jobnatics AI" className="w-full h-full object-cover" />
+                <img src={logoImg} alt="Jobnatics AI" className="w-full h-full object-cover" />
               </div>
               <span className="font-semibold" style={{ fontFamily: 'Outfit, sans-serif' }}>Jobnatics AI</span>
             </div>

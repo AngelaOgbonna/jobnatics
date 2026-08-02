@@ -41,6 +41,7 @@ export interface User {
   email: string
   role: UserRole
   avatar: string
+  gender?: string
   company?: string
   title?: string
   profileSetupCompleted?: boolean
@@ -443,12 +444,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
           description: j.description || (j.title + ' ' + (j.skills || []).join(' '))
         }))
 
+        const isUnprivilegedGender = user.gender?.toLowerCase() === 'female' || user.gender?.toLowerCase() === 'non-binary'
         const res = await fetch(`${BACKEND_URL}/api/match`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             resume_text: resumeText,
-            demographic_group: 0,
+            demographic_group: isUnprivilegedGender ? 1 : 0,
             live_jobs: liveJobs,
           }),
         })

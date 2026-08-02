@@ -3,6 +3,7 @@ import { useNavigate, useLocation } from 'react-router'
 import { useApp } from '../context/AppContext'
 import { signOut } from 'firebase/auth'
 import { auth } from '../firebase'
+import logoImg from '../../assets/logo.png'
 import {
   LayoutDashboard, Briefcase, FileText, Sparkles, MessageSquare,
   Bell, Bookmark, UserCircle, Settings, LogOut, Users, BarChart3,
@@ -106,7 +107,7 @@ export function Layout({ children }: { children: ReactNode }) {
         {/* Logo */}
         <div className="flex items-center gap-3 px-4 py-5 border-b border-sidebar-border">
           <div className="flex-shrink-0 w-8 h-8 rounded-lg overflow-hidden group cursor-pointer transition-transform duration-300 group-hover:scale-110">
-            <img src="/favicon.png" alt="Jobnatics AI" className="w-full h-full object-cover" />
+            <img src={logoImg} alt="Jobnatics AI" className="w-full h-full object-cover" />
           </div>
           {sidebarOpen && (
             <div className="overflow-hidden">

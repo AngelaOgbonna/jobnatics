@@ -33,6 +33,7 @@ export function ProfileSetup() {
     if (user) {
       setForm(prev => ({
         ...prev,
+        gender: user.gender || prev.gender || 'female',
         location: user.location || prev.location,
         bio: user.bio || prev.bio,
         website: user.website || prev.website,
@@ -62,6 +63,7 @@ export function ProfileSetup() {
   }, [user, companies, loadingData, navigate])
 
   const [form, setForm] = useState({
+    gender: 'female',
     location: '',
     bio: '',
     website: '',
@@ -199,6 +201,7 @@ export function ProfileSetup() {
     const updatedProfile = {
       role: user.role,
       avatar: user.avatar,
+      gender: form.gender,
       title: user.role === 'applicant' ? (user.title || form.roleLevel + ' Engineer') : user.title,
       company: user.role === 'recruiter' ? form.companyName.trim() : user.company,
       location: form.location,
@@ -314,6 +317,24 @@ export function ProfileSetup() {
                   <h2 className="text-sm font-bold uppercase tracking-wider text-muted-foreground mb-4">
                     1. Basic Profile
                   </h2>
+                  <div>
+                    <label className="block text-xs font-medium text-foreground mb-1.5 flex items-center gap-1.5">
+                      <Target size={14} strokeWidth={1.75} className="text-primary" /> Gender / Demographic Group
+                    </label>
+                    <p className="text-[11px] text-muted-foreground mb-2 leading-relaxed">
+                      Used by our AI Fairness Engine to audit demographic parity and eliminate gender bias in job match scores.
+                    </p>
+                    <select
+                      value={form.gender}
+                      onChange={e => setForm({ ...form, gender: e.target.value })}
+                      className="w-full px-4 py-3 text-sm rounded-xl bg-muted/40 border border-border/30 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-foreground cursor-pointer"
+                    >
+                      <option value="female">Female</option>
+                      <option value="male">Male</option>
+                      <option value="non-binary">Non-binary / Other</option>
+                      <option value="prefer-not-to-say">Prefer not to say</option>
+                    </select>
+                  </div>
                   <div>
                     <label className="block text-xs font-medium text-foreground mb-1.5 flex items-center gap-1.5">
                       <MapPin size={14} strokeWidth={1.75} className="text-primary" /> Location

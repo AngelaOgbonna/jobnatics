@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router'
 import { useApp, User } from '../context/AppContext'
+import logoImg from '../../assets/logo.png'
 import { Zap, Eye, EyeOff, ArrowLeft, Sparkles, Users, CheckCircle2, ArrowRight, Shield } from 'lucide-react'
 import { motion, AnimatePresence } from 'motion/react'
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword, updateProfile } from 'firebase/auth'
@@ -203,7 +204,7 @@ export function AuthPage() {
 
           <div className="flex items-center gap-3 mb-16 group">
             <div className="w-10 h-10 rounded-xl overflow-hidden shadow-lg transition-transform duration-300 group-hover:scale-105">
-              <img src="/favicon.png" alt="Jobnatics AI" className="w-full h-full object-cover" />
+              <img src={logoImg} alt="Jobnatics AI" className="w-full h-full object-cover" />
             </div>
             <span className="font-bold text-white text-xl" style={{ fontFamily: 'Outfit, sans-serif' }}>
               Jobnatics <span className="text-primary">AI</span>
@@ -266,7 +267,7 @@ export function AuthPage() {
           {/* Mobile logo */}
           <div className="flex items-center gap-2 mb-8 lg:hidden group">
             <div className="w-8 h-8 rounded-lg overflow-hidden transition-transform duration-300 group-hover:scale-105">
-              <img src="/favicon.png" alt="Jobnatics AI" className="w-full h-full object-cover" />
+              <img src={logoImg} alt="Jobnatics AI" className="w-full h-full object-cover" />
             </div>
             <span className="font-bold" style={{ fontFamily: 'Outfit, sans-serif' }}>
               Jobnatics <span className="text-primary">AI</span>
