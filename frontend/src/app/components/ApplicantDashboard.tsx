@@ -399,36 +399,8 @@ export function ApplicantDashboard() {
                   </span>
                 </div>
                 <p className="text-xs text-muted-foreground leading-relaxed max-w-2xl">
-                  Jobnatics candidate ranking has been audited for fairness. Post-correction evaluations confirm equal selection opportunity between male and female candidates with a Disparate Impact Ratio of <strong className="text-foreground font-semibold">0.98 (Passes 80% Rule)</strong> and Demographic Parity Difference of <strong className="text-foreground font-semibold">0.016 (Near Zero Bias)</strong>.
+                  Jobnatics candidate ranking has been audited for fairness. Post-correction evaluations confirm equal selection opportunity between male and female candidates.
                 </p>
-              </div>
-            </div>
-
-            {/* Selection Rate Parity Comparison Bar */}
-            <div className="flex-shrink-0 bg-muted/40 border border-border/40 rounded-xl p-3 sm:w-64">
-              <div className="flex items-center justify-between text-[11px] font-bold text-foreground mb-2">
-                <span>Gender Selection Parity</span>
-                <span className="text-emerald-600 dark:text-emerald-400 font-extrabold">98.4% Match</span>
-              </div>
-              <div className="space-y-2">
-                <div>
-                  <div className="flex justify-between text-[10px] text-muted-foreground mb-1">
-                    <span className="font-medium">Female Candidates</span>
-                    <span className="font-bold text-foreground">49.2% rate</span>
-                  </div>
-                  <div className="w-full h-1.5 rounded-full bg-muted overflow-hidden">
-                    <div className="h-full bg-emerald-500 rounded-full transition-all duration-500" style={{ width: '49.2%' }} />
-                  </div>
-                </div>
-                <div>
-                  <div className="flex justify-between text-[10px] text-muted-foreground mb-1">
-                    <span className="font-medium">Male Candidates</span>
-                    <span className="font-bold text-foreground">50.0% rate</span>
-                  </div>
-                  <div className="w-full h-1.5 rounded-full bg-muted overflow-hidden">
-                    <div className="h-full bg-sky-500 rounded-full transition-all duration-500" style={{ width: '50.0%' }} />
-                  </div>
-                </div>
               </div>
             </div>
           </div>
