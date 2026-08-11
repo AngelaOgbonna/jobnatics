@@ -399,7 +399,7 @@ export function ApplicantDashboard() {
                   </span>
                 </div>
                 <p className="text-xs text-muted-foreground leading-relaxed max-w-2xl">
-                  Jobnatics candidate ranking has been audited for fairness. Post-correction evaluations confirm equal selection opportunity between male and female candidates
+                  Jobnatics candidate ranking has been audited for fairness. Post-correction evaluations confirm equal selection opportunity between male and female candidates.
                 </p>
               </div>
             </div>
