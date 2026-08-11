@@ -550,17 +550,17 @@ export function RecruiterDashboard() {
                                   <div className="flex flex-wrap items-start gap-4">
 
                                     {/* AI Match Score + why_match pills */}
-                                    {applicantScores[app.userId] !== undefined && (
+                                    {(applicantScores[app.userId] !== undefined || app.match !== undefined) && (
                                       <div className="space-y-1.5">
                                         <div className="text-[9px] uppercase font-bold text-muted-foreground">AI Match</div>
-                                        <MatchBadge score={Math.round(applicantScores[app.userId].score)} />
-                                        {applicantScores[app.userId].score === 0 && (
+                                        <MatchBadge score={applicantScores[app.userId] !== undefined ? Math.round(applicantScores[app.userId].score * 100) : app.match} />
+                                        {applicantScores[app.userId]?.score === 0 && (
                                           <div className="mt-1 flex items-center gap-1 text-[10px] text-amber-500/80 font-medium">
                                             <AlertCircle size={10} />
                                             <span>Applicant might not perform well in this role</span>
                                           </div>
                                         )}
-                                        {applicantScores[app.userId].why_match && applicantScores[app.userId].why_match!.length > 0 && (
+                                        {(applicantScores[app.userId]?.why_match?.length ? applicantScores[app.userId].why_match : (prof?.skills || []).filter((s: string) => (selectedManageJob?.skills || []).some((js: string) => js.toLowerCase() === s.toLowerCase())))?.length > 0 && (
                                           <div className="mt-2 p-3 rounded-lg bg-primary/5 border border-primary/10">
                                             <div className="text-[10px] uppercase font-bold text-primary/80 mb-1 flex items-center gap-1.5">
                                               <Sparkles size={10} /> Why recommended
@@ -568,7 +568,10 @@ export function RecruiterDashboard() {
                                             <p className="text-xs text-muted-foreground leading-relaxed">
                                               This candidate is a strong match for this role, specifically due to their experience with{' '}
                                               <span className="font-semibold text-primary/90">
-                                                {applicantScores[app.userId].why_match!.slice(0, 4).map((w: any) => w.term).join(', ').replace(/, ([^,]*)$/, ', and $1')}
+                                                {(applicantScores[app.userId]?.why_match?.length ? applicantScores[app.userId].why_match!.map((w: any) => w.term) : (prof?.skills || []).filter((s: string) => (selectedManageJob?.skills || []).some((js: string) => js.toLowerCase() === s.toLowerCase())))
+                                                  .slice(0, 4)
+                                                  .join(', ')
+                                                  .replace(/, ([^,]*)$/, ', and $1')}
                                               </span>.
                                             </p>
                                           </div>
