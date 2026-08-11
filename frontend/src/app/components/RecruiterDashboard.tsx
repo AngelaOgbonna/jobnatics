@@ -393,36 +393,8 @@ export function RecruiterDashboard() {
                   </span>
                 </div>
                 <p className="text-xs text-muted-foreground leading-relaxed max-w-2xl">
-                  Jobnatics candidate ranking has been audited for fairness. Post-correction evaluations confirm equal selection opportunity between male and female candidates with a Disparate Impact Ratio of <strong className="text-foreground font-semibold">0.98 (Passes 80% Rule)</strong> and Demographic Parity Difference of <strong className="text-foreground font-semibold">0.016 (Near Zero Bias)</strong>.
+                  Jobnatics candidate ranking has been audited for fairness. Post-correction evaluations confirm equal selection opportunity between male and female candidates
                 </p>
-              </div>
-            </div>
-
-            {/* Selection Rate Parity Comparison Bar */}
-            <div className="flex-shrink-0 bg-muted/40 border border-border/40 rounded-xl p-3 sm:w-64">
-              <div className="flex items-center justify-between text-[11px] font-bold text-foreground mb-2">
-                <span>Gender Selection Parity</span>
-                <span className="text-emerald-600 dark:text-emerald-400 font-extrabold">98.4% Match</span>
-              </div>
-              <div className="space-y-2">
-                <div>
-                  <div className="flex justify-between text-[10px] text-muted-foreground mb-1">
-                    <span className="font-medium">Female Candidates</span>
-                    <span className="font-bold text-foreground">49.2% rate</span>
-                  </div>
-                  <div className="w-full h-1.5 rounded-full bg-muted overflow-hidden">
-                    <div className="h-full bg-emerald-500 rounded-full transition-all duration-500" style={{ width: '49.2%' }} />
-                  </div>
-                </div>
-                <div>
-                  <div className="flex justify-between text-[10px] text-muted-foreground mb-1">
-                    <span className="font-medium">Male Candidates</span>
-                    <span className="font-bold text-foreground">50.0% rate</span>
-                  </div>
-                  <div className="w-full h-1.5 rounded-full bg-muted overflow-hidden">
-                    <div className="h-full bg-sky-500 rounded-full transition-all duration-500" style={{ width: '50.0%' }} />
-                  </div>
-                </div>
               </div>
             </div>
           </div>
@@ -578,17 +550,17 @@ export function RecruiterDashboard() {
                                   <div className="flex flex-wrap items-start gap-4">
 
                                     {/* AI Match Score + why_match pills */}
-                                    {applicantScores[app.userId] !== undefined && (
+                                    {(applicantScores[app.userId] !== undefined || app.match !== undefined) && (
                                       <div className="space-y-1.5">
                                         <div className="text-[9px] uppercase font-bold text-muted-foreground">AI Match</div>
-                                        <MatchBadge score={Math.round(applicantScores[app.userId].score)} />
-                                        {applicantScores[app.userId].score === 0 && (
+                                        <MatchBadge score={applicantScores[app.userId] !== undefined ? Math.round(applicantScores[app.userId].score * 100) : app.match} />
+                                        {applicantScores[app.userId]?.score === 0 && (
                                           <div className="mt-1 flex items-center gap-1 text-[10px] text-amber-500/80 font-medium">
                                             <AlertCircle size={10} />
                                             <span>Applicant might not perform well in this role</span>
                                           </div>
                                         )}
-                                        {applicantScores[app.userId].why_match && applicantScores[app.userId].why_match!.length > 0 && (
+                                        {(applicantScores[app.userId]?.why_match?.length ? applicantScores[app.userId].why_match : (prof?.skills || []).filter((s: string) => (selectedManageJob?.skills || []).some((js: string) => js.toLowerCase() === s.toLowerCase())))?.length > 0 && (
                                           <div className="mt-2 p-3 rounded-lg bg-primary/5 border border-primary/10">
                                             <div className="text-[10px] uppercase font-bold text-primary/80 mb-1 flex items-center gap-1.5">
                                               <Sparkles size={10} /> Why recommended
@@ -596,7 +568,10 @@ export function RecruiterDashboard() {
                                             <p className="text-xs text-muted-foreground leading-relaxed">
                                               This candidate is a strong match for this role, specifically due to their experience with{' '}
                                               <span className="font-semibold text-primary/90">
-                                                {applicantScores[app.userId].why_match!.slice(0, 4).map((w: any) => w.term).join(', ').replace(/, ([^,]*)$/, ', and $1')}
+                                                {(applicantScores[app.userId]?.why_match?.length ? applicantScores[app.userId].why_match!.map((w: any) => w.term) : (prof?.skills || []).filter((s: string) => (selectedManageJob?.skills || []).some((js: string) => js.toLowerCase() === s.toLowerCase())))
+                                                  .slice(0, 4)
+                                                  .join(', ')
+                                                  .replace(/, ([^,]*)$/, ', and $1')}
                                               </span>.
                                             </p>
                                           </div>
